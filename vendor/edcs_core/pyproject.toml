@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edcs"
+version = "1.0.0"
+description = "ERIDOC Document & Code Scanner - compliance automation"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.31",
+    "tenacity>=8.2",
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "GitPython>=3.1.40",
+    "detect-secrets>=1.4",
+    "regex>=2023.10",
+    "PyMuPDF>=1.23",
+    "pdfplumber>=0.10",
+    "python-docx>=1.1",
+    "python-pptx>=0.6.23",
+    "openpyxl>=3.1",
+    "msoffcrypto-tool>=5.1",
+    "extract-msg>=0.45",
+    "python-magic>=0.4.27",
+    "charset-normalizer>=3.3",
+    "ruamel.yaml>=0.18",
+    "defusedxml>=0.7",
+    "python-hcl2>=4.3",
+    "rapidfuzz>=3.5",
+    "imapclient>=3.0",
+    "Jinja2>=3.1",
+    "SQLAlchemy>=2.0",
+    "python-json-logger>=2.0",
+    "beautifulsoup4>=4.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "responses>=0.24", "ruff>=0.1", "mypy>=1.7"]
+
+[project.scripts]
+edcs-scan = "scripts.run_once:main"
+
+[tool.setuptools.packages.find]
+include = ["edcs*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"

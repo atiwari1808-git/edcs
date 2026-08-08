@@ -1,0 +1,49 @@
+mandatory:
+- key: MOP
+  aliases: ["MOP", "Method of Procedure", "MoP"]
+  weight: 15
+  min_chars: 300
+
+- key: HLD
+  aliases: ["HLD", "High Level Design", "High-Level Design"]
+  weight: 15
+  min_chars: 300
+
+- key: LLD
+  aliases: ["LLD", "Low Level Design", "Low-Level Design"]
+  weight: 15
+  min_chars: 200
+
+- key: UAT_LOGS
+  aliases: ["UAT Logs", "UAT Log", "UAT_Logs", "Logs"]
+  weight: 15
+  min_chars: 100
+
+- key: UAT_SIGNOFF
+  aliases: ["Sign Off", "SignOff", "Sign-off", "UAT SignOff", "UAT Sign Off",
+            "UAT Sign-off", "Final Sign-off", "Final Sign off", "Sign Off Mail"]
+  weight: 15
+  min_chars: 50
+
+# Either a Troubleshooting Guide OR a Solution Document satisfies this one
+# requirement — implemented as a single key with aliases from both document
+# types. The scanner accepts ANY alias match, so whichever one is present
+# clears this slot; you don't need both.
+- key: TROUBLESHOOTING_OR_SOLUTION
+  aliases: ["Troubleshooting", "Troubleshooting Guide",
+            "Troubleshooting and Execution Guide", "Execution Guide",
+            "Solution Document", "SolutionDocument", "Solution Design"]
+  weight: 15
+  min_chars: 200
+
+matching:
+  fuzzy_ratio: 88
+
+boilerplate_lines:
+  - "ericsson internal"
+  - "insert text here"
+  - "tbd"
+  - "to be decided"
+  - "lorem ipsum"
+
+signoff_keywords: ["approved", "sign-off", "signoff", "sign off", "accepted"]

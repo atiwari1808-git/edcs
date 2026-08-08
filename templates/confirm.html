@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Confirmed · Handover Scheduler{% endblock %}
+{% block content %}
+<div class="panel pad" style="max-width:560px;margin:30px auto;text-align:center">
+  {% if meeting.status == "REQUESTED" %}
+  <div style="font-size:2.2rem;color:var(--indigo)"><i class="bi bi-envelope-check-fill"></i></div>
+  <h1 style="color:var(--indigo)">Meeting request sent</h1>
+  {% else %}
+  <div style="font-size:2.2rem;color:var(--green-dark)"><i class="bi bi-check-circle-fill"></i></div>
+  <h1 style="color:var(--green-dark)">Meeting scheduled</h1>
+  {% endif %}
+  <h2 style="margin-top:8px">{{ meeting.subject }}</h2>
+  <p>{{ meeting.booking_date|date:"D d M Y" }} · {{ meeting.slot.label }} ({{ meeting.timezone }})</p>
+  <p class="field-hint" style="font-size:.85rem">
+    {{ meeting.attendees.count }} attendee(s).
+    {% if meeting.status == "REQUESTED" %}
+    The request has been sent to the scheduling automation (Power Automate).
+    The Teams invitation will arrive in everyone's Outlook within a few minutes.
+    {% else %}Invitations are being sent by Exchange.{% endif %}
+  </p>
+  {% if meeting.teams_join_url %}
+  <p><a class="btn btn-primary" href="{{ meeting.teams_join_url }}"><i class="bi bi-camera-video-fill"></i> Open in Teams</a></p>
+  {% endif %}
+  <div style="display:flex;gap:10px;justify-content:center;margin-top:14px">
+    <a href="/" class="btn btn-secondary"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    <a href="/verify/" class="btn btn-ghost"><i class="bi bi-plus-circle"></i> New handover</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+
+from apps.rbac.models import UserRole
+from .models import User
+
+class UserRoleInline(admin.TabularInline):
+    """Assign the dynamic RBAC roles (built at /manage/roles/) directly
+    from the Django admin User page — same roles the front-end role
+    management UI uses; this is just a second place to assign them."""
+    model = UserRole
+    fk_name = "user"
+    extra = 1
+    fields = ("role", "assigned_by", "assigned_at")
+    readonly_fields = ("assigned_by", "assigned_at")
+
+
+@admin.register(User)
+class AppUserAdmin(UserAdmin):
+    list_display = ("username", "email", "role", "roles_display", "is_active", "last_login")
+    list_filter = ("role", "is_active")
+    inlines = [UserRoleInline]
+
+    def roles_display(self, obj):
+        return ", ".join(obj.roles.values_list("name", flat=True)) or "—"
+    roles_display.short_description = "RBAC roles"
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in instances:
+            if isinstance(obj, UserRole) and obj.assigned_by_id is None:
+                obj.assigned_by = request.user
+            obj.save()
+        formset.save_m2m()

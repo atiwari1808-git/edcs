@@ -1,0 +1,49 @@
+# Full stack: web + worker + beat + redis + postgres
+# Usage:  cp .env.example .env  →  edit  →  docker compose up --build
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-edcs_gate}
+      POSTGRES_USER: ${DB_USER:-edcs}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck: {test: ["CMD-SHELL","pg_isready -U ${DB_USER:-edcs}"], interval: 5s, retries: 10}
+
+  redis:
+    image: redis:7-alpine
+    healthcheck: {test: ["CMD","redis-cli","ping"], interval: 5s, retries: 10}
+
+  web:
+    build: .
+    env_file: .env
+    environment: {DB_ENGINE: postgres, CELERY_TASK_ALWAYS_EAGER: "False"}
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py seed_defaults &&
+             python manage.py seed_rbac &&
+             gunicorn config.wsgi:application -b 0.0.0.0:8000 -w 3"
+    ports: ["8000:8000"]
+    volumes: ["media:/app/media"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  worker:
+    build: .
+    env_file: .env
+    environment: {DB_ENGINE: postgres, CELERY_TASK_ALWAYS_EAGER: "False"}
+    command: celery -A config worker -l info -Q celery --concurrency=4
+    volumes: ["media:/app/media"]
+    depends_on: [web]
+
+  beat:
+    build: .
+    env_file: .env
+    environment: {DB_ENGINE: postgres, CELERY_TASK_ALWAYS_EAGER: "False"}
+    command: celery -A config beat -l info
+    depends_on: [web]
+
+volumes:
+  pgdata:
+  media:

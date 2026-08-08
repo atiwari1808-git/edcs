@@ -1,0 +1,25 @@
+# Runtime / cloned repos
+var/
+
+# Django database (don't commit SQLite)
+db.sqlite3
+
+# Large generated file
+project_structure.txt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+*.env
+.venv/
+venv/
+env/
+
+# Media uploads (user-generated content)
+media/
+
+# OS files
+.DS_Store
+Thumbs.db

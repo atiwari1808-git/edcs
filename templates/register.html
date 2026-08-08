@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Register · Handover Scheduler{% endblock %}
+{% block body_class %}auth-body{% endblock %}
+{% block shell %}
+{% if messages %}<div class="flash-stack">{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+<div class="auth-card text-center">
+  <div class="brand-row justify-content-center">
+    <svg class="logo-mark" viewBox="0 0 24 24" fill="none"><rect x="2" y="9" width="6" height="13" rx="1.5" fill="#8B5CF6"/><rect x="9" y="4" width="6" height="18" rx="1.5" fill="#4F46E5"/><rect x="16" y="12" width="6" height="10" rx="1.5" fill="#3B82F6"/></svg>
+    <h2 style="margin:0">Create account</h2>
+  </div>
+  <p class="auth-sub">An administrator must activate your account before you can sign in.</p>
+
+  {% for e in errors %}
+  <div class="alert alert-danger py-2 text-start" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ e }}
+  </div>
+  {% endfor %}
+
+  <form method="post" class="text-start">{% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Full name</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px"><i class="bi bi-person-badge text-secondary"></i></span>
+        <input type="text" name="full_name" value="{{ form.full_name }}" class="form-control border-start-0" placeholder="Enter full name" style="border-radius:0 10px 10px 0" required>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Username</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px"><i class="bi bi-person text-secondary"></i></span>
+        <input type="text" name="username" value="{{ form.username }}" class="form-control border-start-0" placeholder="Choose a username" style="border-radius:0 10px 10px 0" required>
+      </div>
+      <div class="field-hint">3–32 characters; letters, numbers, . or _</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Email</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px"><i class="bi bi-envelope text-secondary"></i></span>
+        <input type="email" name="email" value="{{ form.email }}" class="form-control border-start-0" placeholder="name@ericsson.com" style="border-radius:0 10px 10px 0" required>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Password</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px"><i class="bi bi-lock text-secondary"></i></span>
+        <input type="password" name="password" id="pwdField" class="form-control border-start-0" placeholder="Create a password" style="border-radius:0 10px 10px 0" required>
+        <button type="button" class="btn btn-light border ms-1" style="border-radius:8px" onclick="togglePwd('pwdField','eyeIcon1')"><i class="bi bi-eye" id="eyeIcon1"></i></button>
+      </div>
+      <div class="field-hint">Min 8 chars incl. a letter and a number.</div>
+    </div>
+    <div class="mb-4">
+      <label class="form-label fw-semibold">Confirm password</label>
+      <div class="input-group">
+        <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px"><i class="bi bi-lock-fill text-secondary"></i></span>
+        <input type="password" name="confirm_password" id="pwdField2" class="form-control border-start-0" placeholder="Re-enter password" style="border-radius:0 10px 10px 0" required>
+        <button type="button" class="btn btn-light border ms-1" style="border-radius:8px" onclick="togglePwd('pwdField2','eyeIcon2')"><i class="bi bi-eye" id="eyeIcon2"></i></button>
+      </div>
+    </div>
+    <div class="d-grid">
+      <button type="submit" class="btn btn-primary btn-block">
+        <i class="bi bi-person-check me-1"></i> Create account
+      </button>
+    </div>
+  </form>
+  <hr class="my-3" style="border-color:#e2e8f0;">
+  <p class="mb-0" style="font-size:0.85rem;color:#64748b">Already registered? <a href="/login/">Sign in</a></p>
+</div>
+
+<script>
+function togglePwd(fieldId, iconId) {
+  const f = document.getElementById(fieldId);
+  const i = document.getElementById(iconId);
+  if (f.type === 'password') { f.type = 'text'; i.className = 'bi bi-eye-slash'; }
+  else { f.type = 'password'; i.className = 'bi bi-eye'; }
+}
+</script>
+{% endblock %}

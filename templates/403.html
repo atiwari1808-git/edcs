@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Access denied · Handover Scheduler{% endblock %}
+{% block content %}
+<div class="panel pad" style="max-width:520px;margin:40px auto;text-align:center">
+  <div style="font-size:2.2rem;color:var(--red-text)"><i class="bi bi-shield-lock-fill"></i></div>
+  <h1 style="color:var(--red-text)">Access denied</h1>
+  <p>You don't have the permission required for this action{% if codename %} (<code>{{ codename }}</code>){% endif %}.
+     Ask an administrator to grant it if you believe this is a mistake.</p>
+  <a href="/" class="btn btn-secondary"><i class="bi bi-speedometer2"></i> Back to dashboard</a>
+</div>
+{% endblock %}

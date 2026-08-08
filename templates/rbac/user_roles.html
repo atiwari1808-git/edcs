@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Assign Roles · Handover Scheduler{% endblock %}
+{% block content %}
+<h1><i class="bi bi-person-check-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Assign Roles to Users</h1>
+<p>A user may hold multiple roles; their access is the union of all of them.</p>
+
+{% for u in users %}
+<form method="post" id="form-{{ u.id }}">{% csrf_token %}<input type="hidden" name="user_id" value="{{ u.id }}"></form>
+{% endfor %}
+
+<div class="panel" style="padding:6px 20px">
+  <table class="data-table">
+    <thead><tr><th>User</th><th>Roles</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ u.username }}</span>
+            {% if not u.is_active %}<span class="badge badge-ERROR" style="margin-left:6px">inactive</span>{% endif %}</td>
+        <td>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+            {% for r in all_roles %}
+            <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;font-weight:600;cursor:pointer">
+              <input type="checkbox" name="roles" value="{{ r.id }}" form="form-{{ u.id }}" style="width:auto"
+                     {% if r in u.roles.all %}checked{% endif %}>
+              {{ r.name }}
+            </label>
+            {% endfor %}
+          </div>
+        </td>
+        <td><button type="submit" form="form-{{ u.id }}" class="btn btn-secondary btn-sm"><i class="bi bi-check2"></i> Save</button></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

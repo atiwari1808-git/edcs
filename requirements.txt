@@ -1,0 +1,41 @@
+Django==4.2.16
+celery==5.4.0
+redis==5.0.8
+msal==1.31.0
+requests==2.32.3
+xhtml2pdf==0.2.16
+python-dotenv==1.0.1
+cryptography==43.0.1
+gunicorn==23.0.0
+#psycopg-binary==3.3.4
+psycopg2-binary
+whitenoise==6.7.0
+# ── EDCS v1.0.1 scanner engine (vendored at vendor/edcs_core) ──────
+# Installed as an editable package so `import edcs` resolves to the
+# real scanners. Run: pip install -e ./vendor/edcs_core
+-e ./vendor/edcs_core
+tenacity>=8.2
+GitPython>=3.1.40
+detect-secrets>=1.4
+regex>=2023.10
+PyMuPDF>=1.23
+pdfplumber>=0.10
+python-docx>=1.1
+python-pptx>=0.6.23
+openpyxl>=3.1
+msoffcrypto-tool>=5.1
+extract-msg>=0.45
+python-magic>=0.4.27; sys_platform != "win32"
+python-magic-bin==0.4.14; sys_platform == "win32"
+charset-normalizer>=3.3
+ruamel.yaml>=0.18
+defusedxml>=0.7
+python-hcl2>=4.3
+rapidfuzz>=3.5
+imapclient>=3.0
+Jinja2>=3.1
+SQLAlchemy>=2.0
+python-json-logger>=2.0
+beautifulsoup4>=4.12
+pydantic>=2.5
+pydantic-settings>=2.1

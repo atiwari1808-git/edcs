@@ -1,0 +1,6 @@
+#!/bin/sh
+# Emits credentials for git from environment - never on argv, never on disk.
+case "$1" in
+  Username*) printf '%s' "${EDCS_GIT_USER}";;
+  Password*) printf '%s' "${EDCS_GIT_TOKEN}";;
+esac

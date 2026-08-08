@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}{% if role %}Edit{% else %}New{% endif %} Role · Handover Scheduler{% endblock %}
+{% block content %}
+<h1><i class="bi bi-shield-lock-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>{% if role %}Edit Role: {{ role.name }}{% else %}New Role{% endif %}</h1>
+<p>Group permissions by module below. A user's effective access is the union of every role they hold.</p>
+
+<form method="post" class="panel pad" style="max-width:820px">
+  {% csrf_token %}
+  <div class="field-group">
+    <label>Role name</label>
+    <input type="text" name="name" value="{{ role.name|default:'' }}" required
+           {% if role.is_system %}title="Starter role — you may still rename it"{% endif %}>
+  </div>
+  <div class="field-group">
+    <label>Description</label>
+    <input type="text" name="description" value="{{ role.description|default:'' }}"
+           placeholder="What this role is for">
+  </div>
+
+  <label style="display:block;margin:18px 0 8px">Permissions</label>
+  {% for module, perms in grouped_permissions %}
+  <div style="border:1px solid var(--border);border-radius:11px;padding:12px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <strong style="text-transform:capitalize;font-size:.86rem">{{ module }}</strong>
+      <span style="font-size:.72rem">
+        <a href="#" onclick="toggleModule(event,'{{ module }}',true)" style="margin-right:8px">select all</a>
+        <a href="#" onclick="toggleModule(event,'{{ module }}',false)">clear</a>
+      </span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px">
+      {% for p in perms %}
+      <label style="display:flex;align-items:center;gap:6px;font-weight:500;font-size:.84rem;cursor:pointer">
+        <input type="checkbox" name="permissions" value="{{ p.codename }}"
+               data-module="{{ module }}"
+               {% if p.codename in checked %}checked{% endif %}
+               style="width:auto">
+        {{ p.action }}
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div style="display:flex;gap:10px;margin-top:16px">
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle"></i> Save Role</button>
+    <a href="{% url 'role-list' %}" class="btn btn-ghost">Cancel</a>
+  </div>
+</form>
+
+<script>
+function toggleModule(e, module, on) {
+  e.preventDefault();
+  document.querySelectorAll('input[data-module="'+module+'"]').forEach(cb => cb.checked = on);
+}
+</script>
+{% endblock %}

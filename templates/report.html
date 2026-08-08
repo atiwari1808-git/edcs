@@ -1,0 +1,124 @@
+{% extends "base.html" %}{% block title %}Report — {{ run.jira_id }}{% endblock %}
+{% block content %}
+<style>
+.scan-report{background:#0c2340;color:#e6e8eb;border-radius:10px;padding:26px 30px;font-family:"Segoe UI",system-ui,sans-serif}
+.scan-report h1{color:#fff;font-size:24px;margin:0 0 4px}
+.scan-report .subtitle{color:#9aa3ad;font-size:13px;margin:0 0 20px}
+.scan-report table.summary{width:100%;border-collapse:collapse;margin-bottom:22px}
+.scan-report table.summary td{padding:8px 10px;border-bottom:1px solid #2e3238;font-size:14px;vertical-align:top}
+.scan-report table.summary td.label{color:#9aa3ad;width:190px;font-weight:600}
+.scan-report table.summary td.value{color:#e6e8eb}
+.scan-report .result-FAILED{color:#ff5c48;font-weight:700}
+.scan-report .result-PASSED{color:#3ddc84;font-weight:700}
+.scan-report .result-ERROR{color:#ffb454;font-weight:700}
+.scan-report a{color:#5aa9ff;word-break:break-all}
+.scan-report h2.findings-head{color:#ff5c48;font-size:17px;margin:0 0 12px;font-weight:700}
+
+/* ── Findings table ── */
+.scan-report .findings-wrap{width:100%;overflow-x:auto}           /* ① scroll wrapper */
+.scan-report table.findings{
+  width:100%;
+  table-layout:fixed;                                              /* ② fixed layout */
+  border-collapse:collapse;
+  font-size:13px
+}
+.scan-report table.findings col.col-type   {width:12%}
+.scan-report table.findings col.col-file   {width:26%}            /* ③ explicit col widths */
+.scan-report table.findings col.col-line   {width:6%}
+.scan-report table.findings col.col-content{width:32%}
+.scan-report table.findings col.col-fix    {width:24%}
+.scan-report table.findings th{text-align:left;color:#c7ccd1;font-size:11px;text-transform:uppercase;
+  letter-spacing:.5px;padding:8px 10px;border-bottom:2px solid #3a3d42}
+.scan-report table.findings td{padding:9px 10px;border-bottom:1px solid #2a2d32;vertical-align:top;
+  overflow-wrap:break-word;word-break:break-word}                  /* ④ break long strings */
+.scan-report table.findings tr:hover td{background:#22262c}
+.scan-report .type-cell{color:#ff8066;font-weight:700}            /* ⑤ removed white-space:nowrap */
+.scan-report .type-cell.sev-info,.scan-report .type-cell.sev-low{color:#9aa3ad;font-weight:600}
+.scan-report .type-cell.sev-medium{color:#ffb454}
+.scan-report .file-cell{color:#c7ccd1;font-family:Consolas,monospace;font-size:12.5px;
+  word-break:break-all}                                            /* ⑥ break long paths */
+.scan-report .line-cell{color:#9aa3ad;font-family:Consolas,monospace}
+.scan-report .content-cell{color:#e6e8eb;font-family:Consolas,monospace;font-size:12.5px;
+  word-break:break-all}                                            /* ⑦ break long content */
+.scan-report .fix-cell{color:#8fb3ff;font-size:12px}              /* ⑧ removed max-width (col handles it) */
+.scan-report .empty{color:#6b7280;padding:14px 0;font-style:italic}
+.scan-report .toolbar{margin:18px 0 24px}
+.scan-report .toolbar a{display:inline-block;background:#2e3238;color:#fff;text-decoration:none;
+  border-radius:6px;padding:9px 16px;font-size:13px;font-weight:600;margin-right:8px}
+.scan-report .toolbar a.primary{background:#5aa9ff;color:#0c1420}
+</style>
+
+<div class="scan-report">
+  <h1>Validation Report</h1>
+  <p class="subtitle">Automated release-readiness validation — EDCS-Gate ({{ run.tool.display_name }})</p>
+
+  <div class="toolbar">
+    <a href="#" id="back-btn" onclick="edcsBack(event)">← Back</a>
+    <a href="/validations/{{ run.id }}/report.pdf">Download PDF</a>
+    {% if run.status == "PASSED" %}<a class="primary" href="/scheduler/?run_id={{ run.id }}">Schedule meeting →</a>{% endif %}
+  </div>
+
+  <table class="summary">
+    <tr><td class="label">Scan result</td>
+        <td class="value"><span class="result-{{ run.status }}">
+          {% if run.status == "PASSED" %}PASS — All checks satisfied
+          {% elif run.status == "FAILED" %}FAIL — Issues found
+          {% else %}ERROR — Scan could not complete{% endif %}
+        </span></td></tr>
+    <tr><td class="label">JIRA ID</td><td class="value"><b>{{ run.jira_id }}</b></td></tr>
+    <tr><td class="label">Automation Name</td><td class="value">{{ run.automation_name|default:"—" }}</td></tr>
+    <tr><td class="label">Customer</td><td class="value">{{ run.customer_name|default:"—" }}</td></tr>
+    {% if run.repo_url %}
+    <tr><td class="label">Repository</td><td class="value"><a href="{{ run.repo_url }}">{{ run.repo_url }}</a></td></tr>
+    {% endif %}
+    <tr><td class="label">Scanned at</td><td class="value">{{ run.started_at|date:"Y-m-d H:i:s" }} UTC</td></tr>
+    {% if run.repo_url %}
+    <tr><td class="label">Files scanned</td><td class="value">{{ files_scanned }}</td></tr>
+    <tr><td class="label">Password issues</td><td class="value">{{ password_issues }}</td></tr>
+    <tr><td class="label">IP issues</td><td class="value">{{ ip_issues }}</td></tr>
+    {% endif %}
+    <tr><td class="label">Documents scanned</td><td class="value">{{ documents_scanned }}</td></tr>
+    {% if compliance_score != None %}
+    <tr><td class="label">Compliance score</td><td class="value">{{ compliance_score }}%</td></tr>
+    {% endif %}
+    <tr><td class="label">Requested by</td><td class="value">{{ run.requested_by.username }}</td></tr>
+  </table>
+
+  <h2 class="findings-head">Findings detail</h2>
+  {% if findings %}
+  <div class="findings-wrap">
+    <table class="findings">
+      <colgroup>
+        <col class="col-type">
+        <col class="col-file">
+        <col class="col-line">
+        <col class="col-content">
+        <col class="col-fix">
+      </colgroup>
+      <tr><th>Type</th><th>File</th><th>Line</th><th>Content</th><th>Suggested fix</th></tr>
+      {% for f in findings %}
+      <tr>
+        <td class="type-cell sev-{{ f.severity|lower }}">{{ f.title }}</td>
+        <td class="file-cell">{{ f.file|default:"—" }}</td>
+        <td class="line-cell">{{ f.line|default:"—" }}</td>
+        <td class="content-cell">{{ f.content|default:f.detail }}</td>
+        <td class="fix-cell">{{ f.recommendation }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% else %}
+  <p class="empty">No issues found — every check passed.</p>
+  {% endif %}
+</div>
+<script>
+function edcsBack(e){
+  e.preventDefault();
+  // Arrived from within the app -> go back (preserves prior page state, no reload).
+  // Otherwise fall back to the Verify page.
+  var sameOrigin = document.referrer && document.referrer.indexOf(location.origin)===0;
+  if (sameOrigin && history.length > 1) { history.back(); }
+  else { location.href = "/verify/"; }
+}
+</script>
+{% endblock %}

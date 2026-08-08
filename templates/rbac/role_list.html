@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Roles · Handover Scheduler{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h1><i class="bi bi-shield-lock-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Roles &amp; Permissions</h1>
+    <p style="margin-bottom:0">Create and edit roles, then assign them to users. Changes take effect immediately.</p>
+  </div>
+  <div style="display:flex;gap:10px;flex-shrink:0">
+    {% if "roles.assign" in perms_set %}
+    <a href="{% url 'user-roles' %}" class="btn btn-secondary"><i class="bi bi-person-check-fill"></i> Assign to Users</a>
+    {% endif %}
+    {% if "roles.create" in perms_set %}
+    <a href="{% url 'role-create' %}" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> New Role</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="panel" style="padding:6px 20px">
+  <table class="data-table">
+    <thead><tr><th>Role</th><th>Description</th><th>Permissions</th><th>Users</th><th></th></tr></thead>
+    <tbody>
+    {% for r in roles %}
+      <tr>
+        <td><strong>{{ r.name }}</strong> {% if r.is_system %}<span class="badge badge-completed">starter</span>{% endif %}</td>
+        <td style="color:var(--text-tertiary)">{{ r.description|default:"—" }}</td>
+        <td>{{ r.permissions.count }}</td>
+        <td>{{ r.user_roles.count }}</td>
+        <td style="white-space:nowrap">
+          {% if "roles.edit" in perms_set %}<a href="{% url 'role-edit' r.id %}" class="btn btn-secondary btn-sm"><i class="bi bi-pencil-square"></i> Edit</a>{% endif %}
+          {% if "roles.create" in perms_set %}
+          <form method="post" action="{% url 'role-clone' r.id %}" style="display:inline">{% csrf_token %}
+            <button class="btn btn-secondary btn-sm"><i class="bi bi-copy"></i> Clone</button></form>
+          {% endif %}
+          {% if "roles.delete" in perms_set and not r.is_system %}
+          <form method="post" action="{% url 'role-delete' r.id %}" style="display:inline"
+                onsubmit="return confirm('Delete role {{ r.name }}?');">{% csrf_token %}
+            <button class="btn btn-danger btn-sm"><i class="bi bi-trash3"></i> Delete</button></form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

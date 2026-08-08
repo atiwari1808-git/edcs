@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Scheduler · Handover Scheduler{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h1><i class="bi bi-calendar2-week-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Schedule Handover Call</h1>
+    <p style="margin-bottom:0">Pick an available date for your handover call. Weekends, public holidays, and dates already fully booked for this tool are blocked. One booking per tool per slot per day — first come, first served.</p>
+  </div>
+  <div style="display:flex;gap:10px;flex-shrink:0">
+    <a href="/verify/" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>
+    <a href="/" class="btn btn-ghost"><i class="bi bi-speedometer2"></i> Dashboard</a>
+  </div>
+</div>
+
+<div class="tool-chip"><i class="bi bi-tools"></i> {{ tool.display_name }} <span style="font-weight:400">· {{ run.jira_id }} <i class="bi bi-check-circle-fill" style="color:var(--green-dark)"></i></span></div>
+<div class="slot-note">
+  {% if single_slot %}Fixed daily slot: <strong>{{ single_slot.label }}</strong>
+  {% else %}Daily slots: <strong>{% for s in slots %}{{ s.label }}{% if not forloop.last %} · {% endif %}{% endfor %}</strong>{% endif %}
+  — check your own Outlook calendar before picking; live availability is not checked in this mode.
+</div>
+
+<div class="scheduler-layout">
+  <div class="panel pad">
+    <h2 style="font-size:.9rem"><i class="bi bi-calendar3" style="color:var(--indigo);margin-right:6px"></i>Pick a date &amp; details</h2>
+    <div class="picker-grid">
+      <div class="picker-col-cal">
+        <div class="calendar-legend">
+          <span><span class="dot dot-bookable"></span>Available</span>
+          <span><span class="dot dot-booked"></span>Booked for this tool</span>
+          <span><span class="dot dot-blocked"></span>Weekend / Holiday</span>
+        </div>
+        <div class="calendar-header">
+          <button type="button" id="cal-prev" class="cal-nav-btn"><i class="bi bi-chevron-left"></i></button>
+          <h3 id="cal-month-label">—</h3>
+          <button type="button" id="cal-next" class="cal-nav-btn"><i class="bi bi-chevron-right"></i></button>
+        </div>
+        <div class="cal-weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+        <div id="calendar-grid" data-tool="{{ tool.key }}"></div>
+
+        <div id="slot-section" style="display:none;margin-top:14px">
+          <label style="font-size:.83rem;font-weight:600">Available slots on <span id="slot-date-label"></span></label>
+          <div class="slot-pick" id="slot-pick"></div>
+        </div>
+      </div>
+
+      <div class="picker-col-form">
+        <div class="field-group">
+          <label>Developer Email *</label>
+          <input type="text" id="developer_email" placeholder="dev1@ericsson.com, dev2@ericsson.com">
+          <div class="field-hint">Separate multiple emails with commas.</div>
+        </div>
+        <div class="field-group">
+          <label>Scrum Master Email *</label>
+          <input type="text" id="scrum_master_email" value="{{ user.email }}">
+          <div class="field-hint">Separate multiple emails with commas.</div>
+        </div>
+        <div class="field-group">
+          <label>CC <span style="font-weight:400;color:var(--text-tertiary)">(optional)</span></label>
+          <input type="text" id="cc_email" placeholder="manager@ericsson.com">
+        </div>
+
+        <div class="booking-preview" id="booking-preview" style="display:none">
+          <div><strong>Tool:</strong> {{ tool.display_name }} · <strong>JIRA:</strong> {{ run.jira_id }}</div>
+          <div><strong>Date:</strong> <span id="preview-date">—</span></div>
+          <div><strong>Slot:</strong> <span id="preview-slot">—</span></div>
+        </div>
+
+        <button type="button" id="confirm-btn" class="btn btn-primary btn-block" disabled><i class="bi bi-check2-circle"></i> Confirm Handover Call</button>
+        <div class="field-hint" id="book-err" style="color:var(--danger)"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel pad holidays-card">
+    <h2 style="font-size:.9rem"><i class="bi bi-flag-fill" style="color:var(--amber-text);margin-right:6px"></i>Upcoming Public Holidays (Noida)</h2>
+    {% if holidays %}
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>Holiday</th></tr></thead>
+      <tbody>{% for h in holidays %}<tr><td>{{ h.date }}</td><td>{{ h.name }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}<p>No holidays configured.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const grid=document.getElementById('calendar-grid'), tool=grid.dataset.tool,
+      label=document.getElementById('cal-month-label'),
+      confirmBtn=document.getElementById('confirm-btn'),
+      bookErr=document.getElementById('book-err');
+let cur=new Date(); cur.setDate(1);
+let selDate=null, selSlot=null, selSlotLabel='';
+
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+async function renderMonth(){
+  const y=cur.getFullYear(), m=cur.getMonth()+1;
+  label.textContent=MONTHS[m-1]+' '+y;
+  const r=await fetch(`/api/v1/calendar/month?tool=${tool}&year=${y}&month=${m}`);
+  const days=(await r.json()).days;
+  const firstDow=new Date(y,m-1,1).getDay();
+  let html='';
+  for(let i=0;i<firstDow;i++)html+='<div class="cal-day empty"></div>';
+  Object.keys(days).sort().forEach(iso=>{
+    const st=days[iso], dnum=parseInt(iso.slice(8),10);
+    const cls=st==='bookable'?'bookable':(st==='booked'?'booked':'blocked');
+    const sel=(iso===selDate)?' selected':'';
+    html+=`<div class="cal-day ${cls}${sel}" data-date="${iso}">${dnum}</div>`;
+  });
+  grid.innerHTML=html;
+  grid.querySelectorAll('.cal-day.bookable').forEach(el=>el.onclick=()=>pickDate(el.dataset.date));
+}
+document.getElementById('cal-prev').onclick=()=>{cur.setMonth(cur.getMonth()-1);renderMonth();};
+document.getElementById('cal-next').onclick=()=>{cur.setMonth(cur.getMonth()+1);renderMonth();};
+
+async function pickDate(iso){
+  selDate=iso; selSlot=null; renderMonth();
+  document.getElementById('slot-date-label').textContent=iso;
+  const r=await fetch(`/api/v1/calendar/slots?tool=${tool}&date=${iso}`);
+  const slots=(await r.json()).slots;
+  const box=document.getElementById('slot-pick');
+  box.innerHTML=slots.map(s=>`<button type="button" class="slot-btn" data-id="${s.slot_id}" data-label="${s.label}">${s.label}</button>`).join('')||'<span class="field-hint">No free slots on this date.</span>';
+  document.getElementById('slot-section').style.display='block';
+  box.querySelectorAll('.slot-btn').forEach(b=>b.onclick=()=>{
+    box.querySelectorAll('.slot-btn').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel'); selSlot=b.dataset.id; selSlotLabel=b.dataset.label; refresh();
+  });
+  if(slots.length===1){box.querySelector('.slot-btn').click();}
+  refresh();
+}
+function refresh(){
+  const dev=document.getElementById('developer_email').value.trim();
+  const sm=document.getElementById('scrum_master_email').value.trim();
+  const ok=selDate&&selSlot&&dev&&sm;
+  confirmBtn.disabled=!ok;
+  document.getElementById('booking-preview').style.display=(selDate&&selSlot)?'grid':'none';
+  document.getElementById('preview-date').textContent=selDate||'—';
+  document.getElementById('preview-slot').textContent=selSlotLabel||'—';
+}
+['developer_email','scrum_master_email','cc_email'].forEach(id=>
+  document.getElementById(id).oninput=refresh);
+
+confirmBtn.onclick=async()=>{
+  confirmBtn.disabled=true; bookErr.textContent='';
+  const body={run_id:'{{ run.id }}',date:selDate,slot_id:selSlot,
+    developer_email:document.getElementById('developer_email').value,
+    scrum_master_email:document.getElementById('scrum_master_email').value,
+    cc_email:document.getElementById('cc_email').value};
+  const r=await fetch('/api/v1/meetings',{method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':document.cookie.match(/csrftoken=([^;]+)/)[1]},
+    body:JSON.stringify(body)});
+  const d=await r.json();
+  if(r.ok)location.href='/meetings/'+d.meeting_id+'/';
+  else{bookErr.textContent=d.error||'Booking failed';confirmBtn.disabled=false;
+       if(r.status===409)renderMonth();}
+};
+renderMonth();
+</script>
+{% endblock %}

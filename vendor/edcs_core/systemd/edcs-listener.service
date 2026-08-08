@@ -1,0 +1,21 @@
+[Unit]
+Description=EDCS IMAP Listener
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=edcs
+Group=edcs
+WorkingDirectory=/opt/edcs
+EnvironmentFile=/opt/edcs/.env
+ExecStart=/opt/edcs/.venv/bin/python -m edcs.email_listener.imap_listener
+Restart=always
+RestartSec=10
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/edcs /var/log/edcs /var/tmp/edcs
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
