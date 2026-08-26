@@ -1,35 +1,76 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard · Handover Scheduler{% endblock %}
 {% block content %}
+
 <div class="dashboard-header">
-  <div><h1><i class="bi bi-speedometer2" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Dashboard</h1><p>All scheduled handover calls across tools.</p></div>
-  {% if "verification.view" in perms_set %}<a href="/verify/" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> New Handover</a>{% endif %}
+  <div>
+    <h1><i class="bi bi-speedometer2" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Dashboard</h1>
+    <p>All scheduled handover calls and document-only verifications.</p>
+  </div>
+  {% if "verification.view" in perms_set %}
+  <a href="/verify/" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> New Handover</a>
+  {% endif %}
 </div>
 
+<!-- ── Stat cards (5 cards) ─────────────────────────────────────────── -->
 <div class="stat-grid">
-  <div class="stat-card"><div class="stat-icon-badge acc-indigo"><i class="bi bi-layers-fill"></i></div><div><h3>{{ stats.total }}</h3><span>Total Bookings</span></div></div>
-  <div class="stat-card"><div class="stat-icon-badge acc-blue"><i class="bi bi-calendar3"></i></div><div><h3>{{ stats.upcoming }}</h3><span>Upcoming</span></div></div>
-  <div class="stat-card"><div class="stat-icon-badge acc-green"><i class="bi bi-check-circle-fill"></i></div><div><h3>{{ stats.completed }}</h3><span>Completed</span></div></div>
-  <div class="stat-card"><div class="stat-icon-badge acc-red"><i class="bi bi-x-circle-fill"></i></div><div><h3>{{ stats.cancelled }}</h3><span>Cancelled</span></div></div>
+  <div class="stat-card">
+    <div class="stat-icon-badge acc-indigo"><i class="bi bi-layers-fill"></i></div>
+    <div><h3>{{ stats.total }}</h3><span>Total Bookings</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon-badge acc-blue"><i class="bi bi-calendar3"></i></div>
+    <div><h3>{{ stats.upcoming }}</h3><span>Upcoming</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon-badge acc-green"><i class="bi bi-check-circle-fill"></i></div>
+    <div><h3>{{ stats.completed }}</h3><span>Completed</span></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon-badge acc-red"><i class="bi bi-x-circle-fill"></i></div>
+    <div><h3>{{ stats.cancelled }}</h3><span>Cancelled</span></div>
+  </div>
+  <!-- NEW stat card -->
+  <div class="stat-card">
+    <div class="stat-icon-badge acc-amber" style="background:rgba(249,168,37,.15)">
+      <i class="bi bi-envelope-check-fill" style="color:#f9a825"></i>
+    </div>
+    <div><h3>{{ stats.no_meeting }}</h3><span>No Meeting Needed</span></div>
+  </div>
 </div>
 
+<!-- ── Pending activations ────────────────────────────────────────────── -->
 {% if pending_users %}
 <div class="panel pad" style="margin-bottom:20px;border-left:4px solid var(--warning)">
-  <h2 style="font-size:.9rem"><i class="bi bi-person-plus-fill" style="color:var(--amber-text);margin-right:6px"></i>Pending account activations</h2>
+  <h2 style="font-size:.9rem">
+    <i class="bi bi-person-plus-fill" style="color:var(--amber-text);margin-right:6px"></i>
+    Pending account activations
+  </h2>
   <table class="data-table">
-    <thead><tr><th>Username</th><th>Name</th><th>Email</th><th>Registered</th><th></th></tr></thead>
+    <thead>
+      <tr><th>Username</th><th>Name</th><th>Email</th><th>Registered</th><th></th></tr>
+    </thead>
     <tbody>
-    {% for u in pending_users %}
-      <tr><td>{{ u.username }}</td><td>{{ u.get_full_name }}</td><td>{{ u.email }}</td>
+      {% for u in pending_users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.get_full_name }}</td>
+        <td>{{ u.email }}</td>
         <td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
-        <td><form method="post" action="/accounts/{{ u.id }}/activate/" style="margin:0">{% csrf_token %}
-          <button class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> Activate</button></form></td></tr>
-    {% endfor %}
+        <td>
+          <form method="post" action="/accounts/{{ u.id }}/activate/" style="margin:0">
+            {% csrf_token %}
+            <button class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> Activate</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
     </tbody>
   </table>
 </div>
 {% endif %}
 
+<!-- ── Filters ────────────────────────────────────────────────────────── -->
 <div class="panel" style="padding:20px 22px;margin-bottom:20px">
   <form method="get" action="/" class="filter-bar">
     <div class="field-group" style="flex:1;min-width:200px;margin:0">
@@ -38,41 +79,80 @@
     </div>
     <div class="field-group" style="margin:0">
       <label>Tool</label>
-      <select name="tool"><option value="">All tools</option>
-        {% for t in tools %}<option value="{{ t.key }}" {% if tool_filter == t.key %}selected{% endif %}>{{ t.display_name }}</option>{% endfor %}
+      <select name="tool">
+        <option value="">All tools</option>
+        {% for t in tools %}
+        <option value="{{ t.key }}" {% if tool_filter == t.key %}selected{% endif %}>{{ t.display_name }}</option>
+        {% endfor %}
       </select>
     </div>
     <div class="field-group" style="margin:0">
       <label>Status</label>
-      <select name="status"><option value="">All statuses</option>
-        <option value="scheduled" {% if status_filter == "scheduled" %}selected{% endif %}>Scheduled</option>
-        <option value="completed" {% if status_filter == "completed" %}selected{% endif %}>Completed</option>
-        <option value="cancelled" {% if status_filter == "cancelled" %}selected{% endif %}>Cancelled</option>
-        <option value="failed" {% if status_filter == "failed" %}selected{% endif %}>Failed</option>
+      <select name="status">
+        <option value="">All statuses</option>
+        <option value="scheduled"  {% if status_filter == "scheduled"  %}selected{% endif %}>Scheduled</option>
+        <option value="completed"  {% if status_filter == "completed"  %}selected{% endif %}>Completed</option>
+        <option value="cancelled"  {% if status_filter == "cancelled"  %}selected{% endif %}>Cancelled</option>
+        <option value="failed"     {% if status_filter == "failed"     %}selected{% endif %}>Failed</option>
       </select>
     </div>
-    <div class="field-group" style="margin:0"><label>From</label><input type="date" name="date_from" value="{{ date_from }}"></div>
-    <div class="field-group" style="margin:0"><label>To</label><input type="date" name="date_to" value="{{ date_to }}"></div>
+    <div class="field-group" style="margin:0">
+      <label>From</label><input type="date" name="date_from" value="{{ date_from }}">
+    </div>
+    <div class="field-group" style="margin:0">
+      <label>To</label><input type="date" name="date_to" value="{{ date_to }}">
+    </div>
     <button type="submit" class="btn btn-secondary">Apply Filters</button>
     <a href="/" class="btn btn-ghost">Reset</a>
   </form>
 </div>
 
+<!-- ── Bookings table (Execution / meeting-required) ─────────────────── -->
 <div class="table-toolbar">
-  <h2 style="margin:0">Bookings ({{ bookings|length }})</h2>
-  {% if "reports.export" in perms_set %}<a href="/dashboard/export/?q={{ query }}&tool={{ tool_filter }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}"
-     class="btn btn-secondary btn-sm"><i class="bi bi-download"></i> Download Excel</a>{% endif %}
+  <h2 style="margin:0">Handover Bookings ({{ bookings|length }})</h2>
+  {% if "reports.export" in perms_set %}
+  <a href="/dashboard/export/?q={{ query }}&tool={{ tool_filter }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}"
+     class="btn btn-secondary btn-sm">
+    <i class="bi bi-download"></i> Download Excel
+  </a>
+  {% endif %}
 </div>
 
 {% if bookings %}
 <div class="panel" style="padding:6px 20px">
   <table class="data-table">
-    <thead><tr><th>Username</th><th>Tool</th><th>Customer</th><th>Date</th><th>Slot</th><th>JIRA ID</th><th>Automation Name</th><th>Status</th><th>Cancelled By</th><th>Cancellation Reason</th><th></th></tr></thead>
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Tool</th>
+        <th>Automation Type</th>
+        <th>Customer</th>
+        <th>Date</th>
+        <th>Slot</th>
+        <th>JIRA ID</th>
+        <th>Automation Name</th>
+        <th>Status</th>
+        <th>Cancelled By</th>
+        <th>Cancellation Reason</th>
+        <th></th>
+      </tr>
+    </thead>
     <tbody>
-    {% for b in bookings %}
+      {% for b in bookings %}
       <tr>
         <td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.organizer.username }}</span></td>
         <td>{{ b.m.tool_key }}</td>
+        <td>
+          {% if b.automation_type_display and b.automation_type_display != '—' %}
+          <span class="badge" style="
+            {% if b.automation_type_key == 'EXECUTION' %}background:#d6ead7;color:#1e6b2e
+            {% elif b.automation_type_key == 'HEALTHCHECK' %}background:#fff3cd;color:#7d5a00
+            {% elif b.automation_type_key == 'BACKUP' %}background:#e2d9f3;color:#4a1d96
+            {% else %}background:#ededed;color:#444{% endif %}">
+            {{ b.automation_type_display }}
+          </span>
+          {% else %}—{% endif %}
+        </td>
         <td>{{ b.customer_name|default:"—" }}</td>
         <td>{{ b.m.booking_date|default:b.m.start_at|date:"Y-m-d" }}</td>
         <td>{{ b.m.slot.label|default:"—" }}</td>
@@ -84,21 +164,22 @@
         <td class="wrap-truncate" title="{{ b.m.cancellation_reason }}">{{ b.m.cancellation_reason|default:"—" }}</td>
         <td>
           <button type="button" class="btn btn-danger btn-sm" disabled title="Already cancelled">
-            <i class="bi bi-x-circle"></i> Cancel meeting</button>
+            <i class="bi bi-x-circle"></i> Cancel meeting
+          </button>
         </td>
         {% else %}
-        <td>—</td>
-        <td>—</td>
+        <td>—</td><td>—</td>
         <td>
           {% if b.display_status == "scheduled" and "schedules.cancel" in perms_set %}
           <button type="button" class="btn btn-danger btn-sm"
                   onclick="openCancelModal('{{ b.m.id }}', '{{ b.m.subject|escapejs }}')">
-            <i class="bi bi-x-circle"></i> Cancel meeting</button>
+            <i class="bi bi-x-circle"></i> Cancel meeting
+          </button>
           {% endif %}
         </td>
         {% endif %}
       </tr>
-    {% endfor %}
+      {% endfor %}
     </tbody>
   </table>
 </div>
@@ -106,32 +187,108 @@
 <div class="panel empty-state">No bookings match your filters.</div>
 {% endif %}
 
+<!-- ── No Meeting Needed table (Healthcheck / Backup) ────────────────── -->
+<div class="table-toolbar" style="margin-top:32px">
+  <h2 style="margin:0">
+    <i class="bi bi-envelope-check-fill" style="color:#f9a825;margin-right:6px"></i>
+    No Meeting Needed — Doc-Only Verifications ({{ no_meeting_runs|length }})
+  </h2>
+</div>
+
+{% if no_meeting_runs %}
+<div class="panel" style="padding:6px 20px;border-left:4px solid #f9a825">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Tool</th>
+        <th>Automation Type</th>
+        <th>Customer</th>
+        <th>JIRA ID</th>
+        <th>Automation Name</th>
+        <th>Overall</th>
+        <th>Remarks</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in no_meeting_runs %}
+      <tr>
+        <td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ r.requested_by.username }}</span></td>
+        <td>{{ r.tool.display_name }}</td>
+        <td>
+          {% if r.automation_type %}
+          <span class="badge" style="background:#fff3cd;color:#7d5a00">
+            {{ r.automation_type.display_name }}
+          </span>
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ r.customer_name|default:"—" }}</td>
+        <td>{{ r.jira_id }}</td>
+        <td>{{ r.automation_name|default:"—" }}</td>
+        <td><span class="badge badge-{{ r.status }}">{{ r.status|lower }}</span></td>
+        <td>
+          {% if r.status == "PASSED" %}
+          <span style="color:#1e6b2e;font-size:.82rem;font-weight:600">
+            <i class="bi bi-check-circle-fill"></i> No meeting needed
+          </span>
+          {% elif r.status == "FAILED" %}
+          <span style="color:#9b1c1c;font-size:.82rem;font-weight:600">
+            <i class="bi bi-x-circle-fill"></i> Verification failed
+          </span>
+          {% else %}
+          <span style="color:#6b7a8d;font-size:.82rem">{{ r.status|lower }}</span>
+          {% endif %}
+        </td>
+        <td>{{ r.started_at|date:"Y-m-d H:i" }}</td>
+        <td><a href="/validations/{{ r.id }}/report/">report</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel empty-state" style="border-left:4px solid #f9a825">
+  No doc-only verifications found.
+</div>
+{% endif %}
+
+<!-- ── Cancel modal ───────────────────────────────────────────────────── -->
 <div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content" style="border-radius:14px;border:none">
       <form method="post" id="cancelForm">{% csrf_token %}
         <div class="modal-header" style="border-bottom:1px solid var(--border)">
-          <h5 class="modal-title"><i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i> Cancel handover call</h5>
+          <h5 class="modal-title">
+            <i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i> Cancel handover call
+          </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <p style="margin-bottom:10px">Cancelling <strong id="cancelSubjectLabel"></strong>.
-             The Teams meeting will be cancelled and attendees notified.</p>
+          <p style="margin-bottom:10px">
+            Cancelling <strong id="cancelSubjectLabel"></strong>.
+            The Teams meeting will be cancelled and attendees notified.
+          </p>
           <div class="field-group" style="margin-bottom:0">
             <label>Cancellation reason <span style="color:var(--red-text)">*</span></label>
             <textarea name="reason" id="cancelReason" rows="3" required
-                      placeholder="Why is this handover call being cancelled?"
-                      style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
+              placeholder="Why is this handover call being cancelled?"
+              style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);
+                     border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
           </div>
         </div>
         <div class="modal-footer" style="border-top:1px solid var(--border)">
           <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Never mind</button>
-          <button type="submit" class="btn btn-danger"><i class="bi bi-x-circle"></i> Confirm cancellation</button>
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-x-circle"></i> Confirm cancellation
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
 <script>
 function openCancelModal(meetingId, subject) {
   document.getElementById('cancelForm').action = '/meetings/' + meetingId + '/cancel/';
@@ -141,3 +298,4 @@ function openCancelModal(meetingId, subject) {
 }
 </script>
 {% endblock %}
+

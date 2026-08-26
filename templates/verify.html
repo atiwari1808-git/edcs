@@ -2,7 +2,8 @@
 {% block title %}Verify Documents · Handover Scheduler{% endblock %}
 {% block content %}
 <h1><i class="bi bi-clipboard2-check-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Verify Documents</h1>
-<p>Select the tool, enter the Customer Name and JIRA ID, and provide the Bitbucket link (required for In-House, Enable, and RPA). Documents and code are scanned automatically before you can schedule a handover call.</p>
+<p>Select the tool, choose the automation type, enter the Customer Name and JIRA ID, and provide the Bitbucket link (required for In-House, Enable, and RPA).
+Documents and code are scanned automatically before you can schedule a handover call.</p>
 
 <div class="verify-layout">
   <div class="panel pad">
@@ -11,6 +12,8 @@
       <i class="bi bi-eye-fill"></i> View-only access — running validations requires an additional permission.
     </div>
     {% endif %}
+
+    <!-- Tool -->
     <div class="field-group">
       <label for="tool">Tool</label>
       <select id="tool" required {% if "verification.execute" not in perms_set %}disabled{% endif %}>
@@ -20,90 +23,201 @@
         {% endfor %}
       </select>
     </div>
+
+    <!-- Automation Type (NEW) -->
+    <div class="field-group">
+      <label for="automation_type">Automation Type</label>
+      <select id="automation_type" required {% if "verification.execute" not in perms_set %}disabled{% endif %}>
+        <option value="" disabled selected>— Select type —</option>
+        {% for at in automation_types %}
+        <option value="{{ at.key }}"
+                data-requires-scheduling="{{ at.requires_scheduling|yesno:'1,0' }}"
+                data-label="{{ at.display_name }}">
+          {{ at.display_name }}{% if not at.requires_scheduling %} — No meeting needed{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <!-- Hint shown dynamically based on selection -->
+      <div id="type-hint" style="margin-top:6px;font-size:.8rem;display:none;
+           padding:7px 12px;border-radius:6px;border-left:3px solid"></div>
+    </div>
+
+    <!-- Customer Name -->
     <div class="field-group">
       <label for="customer_name">Customer Name</label>
       <input type="text" id="customer_name" placeholder="e.g. Bharti Airtel" required
              {% if "verification.execute" not in perms_set %}disabled{% endif %}>
     </div>
+
+    <!-- Automation Name -->
     <div class="field-group">
       <label for="automation_name">Automation Name</label>
       <input type="text" id="automation_name" placeholder="e.g. ACE_RAN_ERICSSON_BL_TRX" required
              {% if "verification.execute" not in perms_set %}disabled{% endif %}>
     </div>
+
+    <!-- JIRA ID -->
     <div class="field-group">
       <label for="jira_id">JIRA ID</label>
       <input type="text" id="jira_id" placeholder="e.g. PROJ-1234" required
              {% if "verification.execute" not in perms_set %}disabled{% endif %}>
     </div>
+
+    <!-- Bitbucket Link (conditional) -->
     <div class="field-group" id="repo-group" style="display:none">
       <label for="bitbucket_link">Bitbucket Link</label>
       <input type="text" id="bitbucket_link" placeholder="https://bitbucket.../repo"
              {% if "verification.execute" not in perms_set %}disabled{% endif %}>
     </div>
-    <button type="button" id="run-btn" class="btn btn-primary btn-block" disabled><i class="bi bi-play-circle-fill"></i> Run Verification</button>
+
+    <button type="button" id="run-btn" class="btn btn-primary btn-block" disabled>
+      <i class="bi bi-play-circle-fill"></i> Run Verification
+    </button>
     <div class="field-hint" id="run-err" style="color:var(--danger)"></div>
   </div>
 
+  <!-- Result pane -->
   <div id="result-pane" class="panel pad">
     {% if result_run %}
       {% if result_run.status == "PASSED" %}
-        <div class="overall-banner pass"><i class="bi bi-check-circle-fill"></i> All checks passed — you're clear to schedule your {{ result_run.tool.display_name }} handover call.</div>
+        {% if result_run.automation_type and not result_run.automation_type.requires_scheduling %}
+        <div class="overall-banner pass">
+          <i class="bi bi-check-circle-fill"></i>
+          All checks passed for <b>{{ result_run.tool.display_name }}</b>
+          ({{ result_run.automation_type.display_name }}).
+          <br><small>✅ No meeting scheduling required — a confirmation email has been sent.</small>
+        </div>
+        {% else %}
+        <div class="overall-banner pass">
+          <i class="bi bi-check-circle-fill"></i>
+          All checks passed — you're clear to schedule your {{ result_run.tool.display_name }} handover call.
+        </div>
+        {% endif %}
       {% elif result_run.status == "FAILED" %}
-        <div class="overall-banner fail"><i class="bi bi-x-circle-fill"></i> One or more checks failed for {{ result_run.tool.display_name }}. Review the report and correct the issues.</div>
+      <div class="overall-banner fail">
+        <i class="bi bi-x-circle-fill"></i>
+        One or more checks failed for {{ result_run.tool.display_name }}.
+        Review the report and correct the issues.
+      </div>
       {% elif result_run.status == "CANCELLED" %}
-        <div class="overall-banner" style="background:var(--surface-alt-2);color:var(--text-secondary)"><i class="bi bi-slash-circle"></i> This validation was terminated{% if result_run.cancelled_by %} by {{ result_run.cancelled_by.username }}{% endif %}. Run it again when ready.</div>
+      <div class="overall-banner" style="background:var(--surface-alt-2);color:var(--text-secondary)">
+        <i class="bi bi-slash-circle"></i>
+        This validation was terminated{% if result_run.cancelled_by %} by {{ result_run.cancelled_by.username }}{% endif %}.
+        Run it again when ready.
+      </div>
       {% else %}
-        <div class="overall-banner error"><i class="bi bi-exclamation-triangle-fill"></i> The scan could not complete ({{ result_run.status }}). Try again or contact an admin.</div>
+      <div class="overall-banner error">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        The scan could not complete ({{ result_run.status }}). Try again or contact an admin.
+      </div>
       {% endif %}
+
       <div class="check-grid">
         {% for r in result_run.results.all %}
         <div class="check-card {% if r.status == 'PASSED' %}pass{% else %}fail{% endif %}">
-          <div class="check-icon">{% if r.status == 'PASSED' %}<i class="bi bi-check-circle-fill" style="color:var(--green-dark)"></i>{% else %}<i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i>{% endif %}</div>
+          <div class="check-icon">
+            {% if r.status == 'PASSED' %}
+            <i class="bi bi-check-circle-fill" style="color:var(--green-dark)"></i>
+            {% else %}
+            <i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i>
+            {% endif %}
+          </div>
           <h4>{% if r.scanner == 'ERIDOC' %}ERIDOC Documents{% else %}Bitbucket Code{% endif %}</h4>
           <span class="badge badge-{{ r.status }}">{{ r.status|lower }}</span>
         </div>
         {% endfor %}
       </div>
-      <a href="/validations/{{ result_run.id }}/report/" class="btn btn-secondary btn-block" style="margin-bottom:10px"><i class="bi bi-file-earmark-text-fill"></i> View detailed report</a>
+
+      <a href="/validations/{{ result_run.id }}/report/"
+         class="btn btn-secondary btn-block" style="margin-bottom:10px">
+        <i class="bi bi-file-earmark-text-fill"></i> View detailed report
+      </a>
+
       {% if result_run.status == "PASSED" %}
-      <a href="/scheduler/?run_id={{ result_run.id }}" class="btn btn-success btn-block">Continue to Scheduler <i class="bi bi-arrow-right"></i></a>
+        {% if result_run.automation_type and not result_run.automation_type.requires_scheduling %}
+        <!-- Doc-only types — no scheduler button -->
+        <div class="overall-banner" style="background:var(--info-bg);color:var(--primary-active)">
+          <i class="bi bi-envelope-check-fill"></i>
+          Confirmation email sent to you and the configured recipients. No further action needed.
+        </div>
+        {% else %}
+        <a href="/scheduler/?run_id={{ result_run.id }}" class="btn btn-success btn-block">
+          Continue to Scheduler <i class="bi bi-arrow-right"></i>
+        </a>
+        {% endif %}
       {% endif %}
+
     {% else %}
-      <div class="empty-state" id="empty-hint" style="padding:3rem 1rem"><i class="bi bi-clipboard2-pulse"></i><p style="margin:8px 0 0">Run a verification to see your results here.</p></div>
+    <div class="empty-state" id="empty-hint" style="padding:3rem 1rem">
+      <i class="bi bi-clipboard2-pulse"></i>
+      <p style="margin:8px 0 0">Run a verification to see your results here.</p>
+    </div>
     {% endif %}
+
+    <!-- Progress pane (shown during scan) -->
     <div id="progress-pane" style="display:none">
-      <div class="overall-banner" style="background:var(--info-bg);color:var(--primary-active)"><i class="bi bi-hourglass-split"></i> Scanning… this usually takes 1–5 minutes.</div>
+      <div class="overall-banner" style="background:var(--info-bg);color:var(--primary-active)">
+        <i class="bi bi-hourglass-split"></i> Scanning… this usually takes 1–5 minutes.
+      </div>
       <div class="check-grid" id="progress-cards"></div>
       <button type="button" id="terminate-btn" class="btn btn-danger btn-block"
-              style="margin-top:6px"><i class="bi bi-slash-circle-fill"></i> Terminate validation</button>
+              style="margin-top:6px">
+        <i class="bi bi-slash-circle-fill"></i> Terminate validation
+      </button>
       <div class="field-hint" id="terminate-msg"></div>
     </div>
   </div>
 </div>
 
+<!-- Verification History -->
 <div class="section-block">
   <h2><i class="bi bi-clock-history" style="color:var(--indigo);margin-right:6px"></i>Your Verification History</h2>
   {% if history %}
   <div class="panel" style="padding:6px 20px">
     <table class="data-table">
-      <thead><tr><th>Tool</th><th>Customer</th><th>JIRA ID</th><th>Automation Name</th><th>ERIDOC</th><th>Bitbucket</th><th>Overall</th><th>Date</th><th></th></tr></thead>
+      <thead>
+        <tr>
+          <th>Tool</th>
+          <th>Automation Type</th>
+          <th>Customer</th>
+          <th>JIRA ID</th>
+          <th>Automation Name</th>
+          <th>ERIDOC</th>
+          <th>Bitbucket</th>
+          <th>Overall</th>
+          <th>Date</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
-      {% for r in history %}
+        {% for r in history %}
         <tr>
           <td>{{ r.tool.display_name }}</td>
+          <td>
+            {% if r.automation_type %}
+            <span class="badge" style="
+              background:{% if not r.automation_type.requires_scheduling %}#fff3cd;color:#7d5a00
+                         {% else %}#d6ead7;color:#1e6b2e{% endif %}">
+              {{ r.automation_type.display_name }}
+            </span>
+            {% else %}—{% endif %}
+          </td>
           <td>{{ r.customer_name|default:"—" }}</td>
           <td>{{ r.jira_id }}</td>
           <td>{{ r.automation_name|default:"—" }}</td>
           {% with res=r.results.all %}
           <td>{% for x in res %}{% if x.scanner == 'ERIDOC' %}<span class="badge badge-{{ x.status }}">{{ x.status|lower }}</span>{% endif %}{% endfor %}</td>
-          <td>{% for x in res %}{% if x.scanner == 'BITBUCKET' %}<span class="badge badge-{{ x.status }}">{{ x.status|lower }}</span>{% endif %}{% empty %}—{% endfor %}
-              {% if r.tool.requires_repo_url == False %}—{% endif %}</td>
+          <td>
+            {% if r.tool.requires_repo_url %}
+              {% for x in res %}{% if x.scanner == 'BITBUCKET' %}<span class="badge badge-{{ x.status }}">{{ x.status|lower }}</span>{% endif %}{% endfor %}
+            {% else %}—{% endif %}
+          </td>
           {% endwith %}
           <td><span class="badge badge-{{ r.status }}">{{ r.status|lower }}</span></td>
           <td>{{ r.started_at|date:"Y-m-d H:i" }}</td>
           <td><a href="/validations/{{ r.id }}/report/">report</a></td>
         </tr>
-      {% endfor %}
+        {% endfor %}
       </tbody>
     </table>
   </div>
@@ -115,87 +229,162 @@
 
 {% block extra_js %}
 <script>
-const toolSel=document.getElementById('tool'), jira=document.getElementById('jira_id'),
-      customer=document.getElementById('customer_name'),
-      automation=document.getElementById('automation_name'),
-      repoGroup=document.getElementById('repo-group'), repo=document.getElementById('bitbucket_link'),
-      btn=document.getElementById('run-btn'), errBox=document.getElementById('run-err');
-let needsRepo=false;
+const toolSel     = document.getElementById('tool');
+const atSel       = document.getElementById('automation_type');
+const typeHint    = document.getElementById('type-hint');
+const jira        = document.getElementById('jira_id');
+const customer    = document.getElementById('customer_name');
+const automation  = document.getElementById('automation_name');
+const repoGroup   = document.getElementById('repo-group');
+const repo        = document.getElementById('bitbucket_link');
+const btn         = document.getElementById('run-btn');
+const errBox      = document.getElementById('run-err');
+let needsRepo     = false;
 
-// Feature 4: restore last-entered values after a report round-trip
-const SS_KEY='edcs_verify_inputs';
-try{
-  const saved=JSON.parse(sessionStorage.getItem(SS_KEY)||'{}');
-  if(saved.tool){toolSel.value=saved.tool;}
-  if(saved.customer_name)customer.value=saved.customer_name;
-  if(saved.automation_name)automation.value=saved.automation_name;
-  if(saved.jira_id)jira.value=saved.jira_id;
-  if(saved.repo_url)repo.value=saved.repo_url;
-}catch(e){}
-function persist(){
-  try{sessionStorage.setItem(SS_KEY,JSON.stringify({
-    tool:toolSel.value,customer_name:customer.value,automation_name:automation.value,
-    jira_id:jira.value,repo_url:repo.value}));}catch(e){}
+// ── Session-storage restore ──────────────────────────────────────────────
+const SS_KEY = 'edcs_verify_inputs';
+try {
+  const saved = JSON.parse(sessionStorage.getItem(SS_KEY) || '{}');
+  if (saved.tool)            toolSel.value    = saved.tool;
+  if (saved.automation_type) atSel.value      = saved.automation_type;
+  if (saved.customer_name)   customer.value   = saved.customer_name;
+  if (saved.automation_name) automation.value = saved.automation_name;
+  if (saved.jira_id)         jira.value       = saved.jira_id;
+  if (saved.repo_url)        repo.value       = saved.repo_url;
+} catch(e) {}
+
+function persist() {
+  try {
+    sessionStorage.setItem(SS_KEY, JSON.stringify({
+      tool: toolSel.value, automation_type: atSel.value,
+      customer_name: customer.value, automation_name: automation.value,
+      jira_id: jira.value, repo_url: repo.value
+    }));
+  } catch(e) {}
 }
 
-function check(){
-  const okCustomer=customer.value.trim().length>0;
-  const okAutomation=automation.value.trim().length>0;
-  const okJira=/^[A-Za-z][A-Za-z0-9]+-\d+$/.test(jira.value.trim());
-  const okRepo=!needsRepo||repo.value.trim().length>10;
-  btn.disabled=!(toolSel.value&&okCustomer&&okAutomation&&okJira&&okRepo);
+// ── Automation type hint banner ──────────────────────────────────────────
+function updateTypeHint() {
+  const opt = atSel.selectedOptions[0];
+  if (!opt || !opt.value) { typeHint.style.display = 'none'; return; }
+  const requiresSched = opt.dataset.requiresScheduling === '1';
+  const label         = opt.dataset.label || opt.text;
+  if (requiresSched) {
+    typeHint.style.display    = 'block';
+    typeHint.style.background = '#e3f2fd';
+    typeHint.style.color      = '#0d47a1';
+    typeHint.style.borderColor = '#1565c0';
+    typeHint.innerHTML = `<i class="bi bi-calendar-check-fill"></i>
+      <b>${label}:</b> After a successful scan, you will be prompted to schedule a handover meeting.
+      A confirmation email will also be sent.`;
+  } else {
+    typeHint.style.display    = 'block';
+    typeHint.style.background = '#fff8e1';
+    typeHint.style.color      = '#7d5a00';
+    typeHint.style.borderColor = '#f9a825';
+    typeHint.innerHTML = `<i class="bi bi-envelope-check-fill"></i>
+      <b>${label}:</b> Only document verification will be performed.
+      No meeting scheduling required — a detailed report will be emailed automatically on completion.`;
+  }
+}
+
+// ── Validation ───────────────────────────────────────────────────────────
+function check() {
+  const okCustomer   = customer.value.trim().length > 0;
+  const okAutomation = automation.value.trim().length > 0;
+  const okType       = atSel.value !== '';
+  const okJira       = /^[A-Za-z][A-Za-z0-9]+-\d+$/.test(jira.value.trim());
+  const okRepo       = !needsRepo || repo.value.trim().length > 10;
+  btn.disabled = !(toolSel.value && okCustomer && okAutomation && okType && okJira && okRepo);
   persist();
 }
-toolSel.onchange=()=>{
-  needsRepo=toolSel.selectedOptions[0].dataset.repo==='1';
-  repoGroup.style.display=needsRepo?'block':'none';
+
+toolSel.onchange = () => {
+  needsRepo = toolSel.selectedOptions[0].dataset.repo === '1';
+  repoGroup.style.display = needsRepo ? 'block' : 'none';
   check();
 };
-customer.oninput=check; automation.oninput=check;
-// apply restored tool's repo visibility on load
-if(toolSel.value){toolSel.onchange();}
-jira.oninput=check; repo.oninput=check;
+atSel.onchange = () => { updateTypeHint(); check(); };
+customer.oninput   = check;
+automation.oninput = check;
+jira.oninput       = check;
+repo.oninput       = check;
 
-btn.onclick=async()=>{
-  btn.disabled=true; errBox.textContent='';
-  const body={tool_key:toolSel.value,jira_id:jira.value.trim(),
-              customer_name:customer.value.trim(),
-              automation_name:automation.value.trim(),
-              repo_url:needsRepo?repo.value.trim():''};
-  const r=await fetch('/api/v1/validations',{method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':document.cookie.match(/csrftoken=([^;]+)/)[1]},
-    body:JSON.stringify(body)});
-  const d=await r.json();
-  if(!r.ok){errBox.textContent=d.error||'Request failed';btn.disabled=false;return;}
-  const hint=document.getElementById('empty-hint'); if(hint)hint.style.display='none';
-  document.getElementById('progress-pane').style.display='block';
-  window._edcsRunId=d.run_id;
+// Apply restored values on page load
+if (toolSel.value)  { toolSel.onchange(); }
+if (atSel.value)    { updateTypeHint(); }
+check();
+
+// ── Run verification ─────────────────────────────────────────────────────
+btn.onclick = async () => {
+  btn.disabled = true;
+  errBox.textContent = '';
+  const body = {
+    tool_key:           toolSel.value,
+    jira_id:            jira.value.trim(),
+    customer_name:      customer.value.trim(),
+    automation_name:    automation.value.trim(),
+    automation_type_key: atSel.value,
+    repo_url:           needsRepo ? repo.value.trim() : '',
+  };
+  const r = await fetch('/api/v1/validations', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)[1],
+    },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  if (!r.ok) { errBox.textContent = d.error || 'Request failed'; btn.disabled = false; return; }
+  const hint = document.getElementById('empty-hint');
+  if (hint) hint.style.display = 'none';
+  document.getElementById('progress-pane').style.display = 'block';
+  window._edcsRunId = d.run_id;
   poll(d.run_id);
 };
 
-document.getElementById('terminate-btn').onclick=async()=>{
-  if(!window._edcsRunId)return;
-  if(!confirm('Terminate this validation? Scanners will stop at the next safe point and the run will be marked Cancelled.'))return;
-  const tbtn=document.getElementById('terminate-btn');
-  tbtn.disabled=true;
-  const r=await fetch('/api/v1/validations/'+window._edcsRunId+'/cancel',{method:'POST',
-    headers:{'X-CSRFToken':document.cookie.match(/csrftoken=([^;]+)/)[1]}});
-  const d=await r.json();
-  document.getElementById('terminate-msg').textContent=d.message||'';
+// ── Terminate ─────────────────────────────────────────────────────────────
+document.getElementById('terminate-btn').onclick = async () => {
+  if (!window._edcsRunId) return;
+  if (!confirm('Terminate this validation? Scanners will stop at the next safe point.')) return;
+  const tbtn = document.getElementById('terminate-btn');
+  tbtn.disabled = true;
+  const r = await fetch('/api/v1/validations/' + window._edcsRunId + '/cancel', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)[1] },
+  });
+  const d = await r.json();
+  document.getElementById('terminate-msg').textContent = d.message || '';
 };
-async function poll(id){
-  const r=await fetch('/api/v1/validations/'+id); const d=await r.json();
-  document.getElementById('progress-cards').innerHTML=d.scanners.map(s=>{
-    const pct=s.status==='PENDING'?15:(s.status==='RUNNING'?55:100);
-    const cancelled=(s.status==='CANCELLED');
-    const cls=s.status==='PASSED'?'pass':(cancelled?'':(s.status==='PENDING'||s.status==='RUNNING'?'running':'fail'));
-    const icon=s.status==='PASSED'?'<i class="bi bi-check-circle-fill" style="color:var(--green-dark)"></i>':(cancelled?'<i class="bi bi-slash-circle" style="color:var(--text-tertiary)"></i>':(s.status==='FAILED'||s.status==='ERROR'?'<i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i>':'<i class="bi bi-hourglass-split" style="color:var(--blue-text)"></i>'));
-    const name=s.scanner==='ERIDOC'?'ERIDOC Documents':'Bitbucket Code';
-    return `<div class="check-card ${cls}"><div class="check-icon">${icon}</div><h4>${name}</h4>
+
+// ── Poll ──────────────────────────────────────────────────────────────────
+async function poll(id) {
+  const r = await fetch('/api/v1/validations/' + id);
+  const d = await r.json();
+  document.getElementById('progress-cards').innerHTML = d.scanners.map(s => {
+    const pct       = s.status === 'PENDING' ? 15 : (s.status === 'RUNNING' ? 55 : 100);
+    const cancelled = (s.status === 'CANCELLED');
+    const cls       = s.status === 'PASSED' ? 'pass' : (cancelled ? '' : (
+                      s.status === 'PENDING' || s.status === 'RUNNING' ? 'running' : 'fail'));
+    const icon      = s.status === 'PASSED'
+      ? '<i class="bi bi-check-circle-fill" style="color:var(--green-dark)"></i>'
+      : (cancelled
+        ? '<i class="bi bi-slash-circle" style="color:var(--text-tertiary)"></i>'
+        : (s.status === 'FAILED' || s.status === 'ERROR'
+          ? '<i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i>'
+          : '<i class="bi bi-hourglass-split" style="color:var(--blue-text)"></i>'));
+    const name = s.scanner === 'ERIDOC' ? 'ERIDOC Documents' : 'Bitbucket Code';
+    return `<div class="check-card ${cls}">
+      <div class="check-icon">${icon}</div>
+      <h4>${name}</h4>
       <span class="badge badge-${s.status}">${s.status.toLowerCase()}</span>
-      <div class="progress-track"><span style="width:${pct}%"></span></div></div>`;
+      <div class="progress-track"><span style="width:${pct}%"></span></div>
+    </div>`;
   }).join('');
-  if(d.done){location.href=d.next;} else setTimeout(()=>poll(id),1500);
+  if (d.done) { location.href = d.next; }
+  else        { setTimeout(() => poll(id), 1500); }
 }
 </script>
 {% endblock %}
+

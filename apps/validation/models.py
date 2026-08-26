@@ -14,6 +14,13 @@ class ValidationRun(models.Model):
     tool = models.ForeignKey("adminconfig.ToolConfig", on_delete=models.PROTECT)
     customer_name = models.CharField(max_length=200, blank=True, default="")
     automation_name = models.CharField(max_length=200, blank=True, default="")
+    automation_type = models.ForeignKey(
+        "adminconfig.AutomationType",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="validation_runs",
+        help_text="Controls post-scan behaviour and who is notified.",
+    )
     jira_id = models.CharField(max_length=32, db_index=True)
     repo_url = models.URLField(max_length=512, blank=True, default="")
     status = models.CharField(max_length=10, choices=Status.choices,
@@ -27,6 +34,12 @@ class ValidationRun(models.Model):
                                      related_name="cancelled_runs")
     cancelled_at = models.DateTimeField(null=True, blank=True)
     pdf_file = models.FileField(upload_to="reports/", blank=True, default="")
+
+    @property
+    def requires_scheduling(self):
+        if self.automation_type is None:
+            return True
+        return self.automation_type.requires_scheduling
 
     class Meta:
         ordering = ["-started_at"]
