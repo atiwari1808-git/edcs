@@ -46,6 +46,17 @@ def role_edit(request, role_id):
     })
 
 
+def _parse_limit(raw):
+    """Parse a per-day quota field from the form.
+    Returns (value, error). value is None for blank (unlimited) or an int >= 0."""
+    raw = (raw or "").strip()
+    if raw == "":
+        return None, None
+    if not raw.isdigit():
+        return None, "must be a whole number (or left blank for unlimited)."
+    return int(raw), None
+
+
 def _save_role(request, role):
     name = request.POST.get("name", "").strip()
     description = request.POST.get("description", "").strip()
@@ -54,14 +65,29 @@ def _save_role(request, role):
         messages.error(request, "Role name is required.")
         return redirect(request.path)
 
+    max_meetings, err = _parse_limit(request.POST.get("max_meetings_per_day"))
+    if err:
+        messages.error(request, f"Max handover meetings per day {err}")
+        return redirect(request.path)
+    max_nmn, err = _parse_limit(request.POST.get("max_nmn_verifications_per_day"))
+    if err:
+        messages.error(request, f"Max no-meeting-needed verifications per day {err}")
+        return redirect(request.path)
+
     is_new = role is None
     if is_new:
         if Role.objects.filter(name__iexact=name).exists():
             messages.error(request, f"A role named '{name}' already exists.")
             return redirect("role-create")
-        role = Role.objects.create(name=name, description=description)
+        role = Role.objects.create(
+            name=name, description=description,
+            max_meetings_per_day=max_meetings,
+            max_nmn_verifications_per_day=max_nmn)
     else:
-        role.name, role.description = name, description
+        role.name = name
+        role.description = description
+        role.max_meetings_per_day = max_meetings
+        role.max_nmn_verifications_per_day = max_nmn
         role.save()
 
     valid_perms = list(Permission.objects.filter(codename__in=codenames))
@@ -107,7 +133,10 @@ def role_clone(request, role_id):
     name, n = base_name, 2
     while Role.objects.filter(name=name).exists():
         name = f"{base_name} {n}"; n += 1
-    clone = Role.objects.create(name=name, description=src.description)
+    clone = Role.objects.create(
+        name=name, description=src.description,
+        max_meetings_per_day=src.max_meetings_per_day,
+        max_nmn_verifications_per_day=src.max_nmn_verifications_per_day)
     RolePermission.objects.bulk_create([
         RolePermission(role=clone, permission=p) for p in src.permissions.all()])
     log_action(request.user, "role.created", "roles", f"Role '{name}' cloned from '{src.name}'")

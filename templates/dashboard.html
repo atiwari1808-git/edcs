@@ -1,7 +1,23 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard · Handover Scheduler{% endblock %}
 {% block content %}
-
+<style>
+  /* Keep wide dashboard tables tidy: scroll horizontally inside the panel
+     instead of overflowing the page, and keep headers on a single line so
+     columns stay aligned. */
+  .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-scroll .data-table { min-width:1040px; }
+  .data-table th { white-space:nowrap; vertical-align:middle; }
+  .data-table td { vertical-align:middle; }
+  .data-table td.wrap-truncate { white-space:normal; max-width:220px; }
+  /* Sortable headers */
+  .data-table th.sortable-th { cursor:pointer; user-select:none; }
+  .data-table th.sortable-th:hover { color:var(--indigo); }
+  .data-table th .sort-arrow { font-size:.7rem; opacity:.8; margin-left:2px; }
+  .data-table th.no-sort { cursor:default; }
+  .hd-date { font-weight:600; }
+  .hd-slot { display:block; color:#6b7a8d; font-size:.76rem; }
+</style>
 <div class="dashboard-header">
   <div>
     <h1><i class="bi bi-speedometer2" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Dashboard</h1>
@@ -30,7 +46,6 @@
     <div class="stat-icon-badge acc-red"><i class="bi bi-x-circle-fill"></i></div>
     <div><h3>{{ stats.cancelled }}</h3><span>Cancelled</span></div>
   </div>
-  <!-- NEW stat card -->
   <div class="stat-card">
     <div class="stat-icon-badge acc-amber" style="background:rgba(249,168,37,.15)">
       <i class="bi bi-envelope-check-fill" style="color:#f9a825"></i>
@@ -117,47 +132,37 @@
   </a>
   {% endif %}
 </div>
-
 {% if bookings %}
-<div class="panel" style="padding:6px 20px">
-  <table class="data-table">
+<div class="panel table-scroll" style="padding:6px 20px">
+  <table class="data-table sortable" id="bookingsTable" data-default-col="6" data-default-dir="desc">
     <thead>
       <tr>
         <th>Username</th>
         <th>Tool</th>
-        <th>Automation Type</th>
         <th>Customer</th>
-        <th>Date</th>
-        <th>Slot</th>
+        <th>Handover Date</th>
         <th>JIRA ID</th>
         <th>Automation Name</th>
+        <th>Handover Initiated</th>
         <th>Status</th>
         <th>Cancelled By</th>
         <th>Cancellation Reason</th>
-        <th></th>
+        <th class="no-sort"></th>
       </tr>
     </thead>
     <tbody>
       {% for b in bookings %}
       <tr>
-        <td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.organizer.username }}</span></td>
+        <td data-sort="{{ b.m.organizer.username }}"><span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.organizer.username }}</span></td>
         <td>{{ b.m.tool_key }}</td>
-        <td>
-          {% if b.automation_type_display and b.automation_type_display != '—' %}
-          <span class="badge" style="
-            {% if b.automation_type_key == 'EXECUTION' %}background:#d6ead7;color:#1e6b2e
-            {% elif b.automation_type_key == 'HEALTHCHECK' %}background:#fff3cd;color:#7d5a00
-            {% elif b.automation_type_key == 'BACKUP' %}background:#e2d9f3;color:#4a1d96
-            {% else %}background:#ededed;color:#444{% endif %}">
-            {{ b.automation_type_display }}
-          </span>
-          {% else %}—{% endif %}
-        </td>
         <td>{{ b.customer_name|default:"—" }}</td>
-        <td>{{ b.m.booking_date|default:b.m.start_at|date:"Y-m-d" }}</td>
-        <td>{{ b.m.slot.label|default:"—" }}</td>
+        <td data-sort="{{ b.m.booking_date|default:b.m.start_at|date:"Y-m-d" }} {{ b.m.slot.label }}">
+          <span class="hd-date">{{ b.m.booking_date|default:b.m.start_at|date:"Y-m-d" }}</span>
+          <small class="hd-slot">{{ b.m.slot.label|default:"—" }}</small>
+        </td>
         <td>{{ b.jira_id|default:"—" }}</td>
         <td>{{ b.automation_name|default:"—" }}</td>
+        <td data-sort="{{ b.handover_initiated|date:"Y-m-d H:i" }}">{% if b.handover_initiated %}{{ b.handover_initiated|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
         <td><span class="badge badge-{{ b.display_status }}">{{ b.display_status }}</span></td>
         {% if b.display_status == "cancelled" %}
         <td>{% if b.m.cancelled_by %}<span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.cancelled_by.username }}</span>{% else %}—{% endif %}</td>
@@ -169,7 +174,13 @@
         </td>
         {% else %}
         <td>—</td><td>—</td>
-        <td>
+        <td style="white-space:nowrap">
+          {% if b.display_status == "scheduled" and "schedules.edit" in perms_set %}
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="openRescheduleModal('{{ b.m.id }}', '{{ b.m.subject|escapejs }}', '{{ b.m.tool_key|escapejs }}')">
+            <i class="bi bi-calendar-event"></i> Reschedule
+          </button>
+          {% endif %}
           {% if b.display_status == "scheduled" and "schedules.cancel" in perms_set %}
           <button type="button" class="btn btn-danger btn-sm"
                   onclick="openCancelModal('{{ b.m.id }}', '{{ b.m.subject|escapejs }}')">
@@ -194,10 +205,9 @@
     No Meeting Needed — Doc-Only Verifications ({{ no_meeting_runs|length }})
   </h2>
 </div>
-
 {% if no_meeting_runs %}
-<div class="panel" style="padding:6px 20px;border-left:4px solid #f9a825">
-  <table class="data-table">
+<div class="panel table-scroll" style="padding:6px 20px;border-left:4px solid #f9a825">
+  <table class="data-table sortable" id="nmnTable" data-default-col="8" data-default-dir="desc">
     <thead>
       <tr>
         <th>Username</th>
@@ -208,14 +218,15 @@
         <th>Automation Name</th>
         <th>Overall</th>
         <th>Remarks</th>
-        <th>Date</th>
-        <th></th>
+        <th>Handover Initiated</th>
+        <th>Scan Date</th>
+        <th class="no-sort"></th>
       </tr>
     </thead>
     <tbody>
       {% for r in no_meeting_runs %}
       <tr>
-        <td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ r.requested_by.username }}</span></td>
+        <td data-sort="{{ r.requested_by.username }}"><span class="pill-person"><i class="bi bi-person-fill"></i> {{ r.requested_by.username }}</span></td>
         <td>{{ r.tool.display_name }}</td>
         <td>
           {% if r.automation_type %}
@@ -241,7 +252,8 @@
           <span style="color:#6b7a8d;font-size:.82rem">{{ r.status|lower }}</span>
           {% endif %}
         </td>
-        <td>{{ r.started_at|date:"Y-m-d H:i" }}</td>
+        <td data-sort="{{ r.finished_at|date:"Y-m-d H:i" }}">{% if r.finished_at %}{{ r.finished_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+        <td data-sort="{{ r.started_at|date:"Y-m-d H:i" }}">{{ r.started_at|date:"Y-m-d H:i" }}</td>
         <td><a href="/validations/{{ r.id }}/report/">report</a></td>
       </tr>
       {% endfor %}
@@ -275,13 +287,64 @@
             <textarea name="reason" id="cancelReason" rows="3" required
               placeholder="Why is this handover call being cancelled?"
               style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);
-                     border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
+              border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
           </div>
         </div>
         <div class="modal-footer" style="border-top:1px solid var(--border)">
           <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Never mind</button>
           <button type="submit" class="btn btn-danger">
             <i class="bi bi-x-circle"></i> Confirm cancellation
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Reschedule modal ───────────────────────────────────────────────── -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius:14px;border:none">
+      <form method="post" id="rescheduleForm">{% csrf_token %}
+        <div class="modal-header" style="border-bottom:1px solid var(--border)">
+          <h5 class="modal-title">
+            <i class="bi bi-calendar-event" style="color:var(--indigo)"></i> Reschedule handover call
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom:12px">
+            Moving <strong id="reschedSubjectLabel"></strong> to a new slot.
+            The current Teams meeting will be cancelled and a new invite sent
+            to the same attendees.
+          </p>
+          <div class="field-group" style="margin-bottom:12px">
+            <label>New date <span style="color:var(--red-text)">*</span></label>
+            <input type="date" id="reschedDate" name="date" required
+              style="width:100%;padding:.55rem .8rem;border:1.5px solid var(--border-strong);
+              border-radius:var(--radius-md);font:inherit;font-size:.87rem">
+          </div>
+          <div class="field-group" style="margin-bottom:12px">
+            <label>New slot <span style="color:var(--red-text)">*</span></label>
+            <select id="reschedSlot" name="slot_id" required
+              style="width:100%;padding:.55rem .8rem;border:1.5px solid var(--border-strong);
+              border-radius:var(--radius-md);font:inherit;font-size:.87rem">
+              <option value="">Pick a date first…</option>
+            </select>
+            <small id="reschedSlotHint" style="color:#6b7a8d;font-size:.78rem"></small>
+          </div>
+          <div class="field-group" style="margin-bottom:0">
+            <label>Reason (optional)</label>
+            <textarea name="reason" id="reschedReason" rows="2"
+              placeholder="Why is this handover call being moved?"
+              style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);
+              border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid var(--border)">
+          <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Never mind</button>
+          <button type="submit" class="btn btn-primary" id="reschedSubmit" disabled>
+            <i class="bi bi-calendar-check"></i> Confirm reschedule
           </button>
         </div>
       </form>
@@ -296,6 +359,134 @@ function openCancelModal(meetingId, subject) {
   document.getElementById('cancelReason').value = '';
   new bootstrap.Modal(document.getElementById('cancelModal')).show();
 }
+
+// ── Reschedule: reuses the existing cancel + create Power Automate flows ──
+var _reschedTool = "";
+function openRescheduleModal(meetingId, subject, toolKey) {
+  _reschedTool = toolKey || "";
+  var form = document.getElementById('rescheduleForm');
+  form.action = '/meetings/' + meetingId + '/reschedule/';
+  document.getElementById('reschedSubjectLabel').textContent = subject;
+  document.getElementById('reschedReason').value = '';
+  var dateEl = document.getElementById('reschedDate');
+  dateEl.value = '';
+  dateEl.min = new Date().toISOString().slice(0, 10);
+  var slotEl = document.getElementById('reschedSlot');
+  slotEl.innerHTML = '<option value="">Pick a date first…</option>';
+  document.getElementById('reschedSlotHint').textContent = '';
+  document.getElementById('reschedSubmit').disabled = true;
+  new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  var dateEl = document.getElementById('reschedDate');
+  if (!dateEl) { return; }
+  dateEl.addEventListener('change', function () {
+    var slotEl = document.getElementById('reschedSlot');
+    var hint = document.getElementById('reschedSlotHint');
+    var submit = document.getElementById('reschedSubmit');
+    slotEl.innerHTML = '<option value="">Loading…</option>';
+    submit.disabled = true;
+    hint.textContent = '';
+    if (!this.value) {
+      slotEl.innerHTML = '<option value="">Pick a date first…</option>';
+      return;
+    }
+    fetch('/api/v1/calendar/slots?tool=' + encodeURIComponent(_reschedTool) +
+          '&date=' + encodeURIComponent(this.value))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var slots = (data && data.slots) || [];
+        if (!slots.length) {
+          slotEl.innerHTML = '<option value="">No free slots on this date</option>';
+          hint.textContent = 'That date is fully booked or unavailable for this tool. Try another date.';
+          submit.disabled = true;
+          return;
+        }
+        slotEl.innerHTML = '<option value="">Select a slot…</option>';
+        slots.forEach(function (s) {
+          var o = document.createElement('option');
+          o.value = s.slot_id;
+          o.textContent = s.label;
+          slotEl.appendChild(o);
+        });
+      })
+      .catch(function () {
+        slotEl.innerHTML = '<option value="">Could not load slots</option>';
+        hint.textContent = 'Something went wrong loading slots. Please retry.';
+      });
+  });
+
+  document.getElementById('reschedSlot').addEventListener('change', function () {
+    document.getElementById('reschedSubmit').disabled = !this.value;
+  });
+});
+
+// ── Generic client-side column sorting ─────────────────────────────────
+function _cellSortVal(row, idx) {
+  var td = row.children[idx];
+  if (!td) return '';
+  var v = td.getAttribute('data-sort');
+  if (v !== null) return v.trim();
+  return (td.textContent || '').trim();
+}
+function _sortTable(table, idx, dir) {
+  var tbody = table.querySelector('tbody');
+  if (!tbody) return;
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+  rows.sort(function (a, b) {
+    var x = _cellSortVal(a, idx), y = _cellSortVal(b, idx);
+    var ex = (x === '' || x === '—'), ey = (y === '' || y === '—');
+    if (ex && ey) return 0;
+    if (ex) return 1;            // blanks always sink to the bottom
+    if (ey) return -1;
+    var nx = parseFloat(x), ny = parseFloat(y);
+    var cmp;
+    if (!isNaN(nx) && !isNaN(ny) && /^[-\d.]+$/.test(x) && /^[-\d.]+$/.test(y)) {
+      cmp = nx - ny;
+    } else {
+      var lx = x.toLowerCase(), ly = y.toLowerCase();
+      cmp = lx < ly ? -1 : (lx > ly ? 1 : 0);
+    }
+    return dir === 'asc' ? cmp : -cmp;
+  });
+  rows.forEach(function (r) { tbody.appendChild(r); });
+}
+function _initSortable(table) {
+  var ths = table.querySelectorAll('thead th');
+  ths.forEach(function (th, idx) {
+    if (th.classList.contains('no-sort')) return;
+    th.classList.add('sortable-th');
+    var arrow = document.createElement('span');
+    arrow.className = 'sort-arrow';
+    th.appendChild(arrow);
+    th.addEventListener('click', function () {
+      var dir = th.getAttribute('data-dir') === 'asc' ? 'desc' : 'asc';
+      ths.forEach(function (o) {
+        o.removeAttribute('data-dir');
+        var a = o.querySelector('.sort-arrow');
+        if (a) a.textContent = '';
+      });
+      th.setAttribute('data-dir', dir);
+      arrow.textContent = dir === 'asc' ? ' \u25B2' : ' \u25BC';
+      _sortTable(table, idx, dir);
+    });
+  });
+  // Apply the default sort (latest Handover Initiated first)
+  var dc = parseInt(table.getAttribute('data-default-col'), 10);
+  var dd = table.getAttribute('data-default-dir') || 'desc';
+  if (!isNaN(dc)) {
+    var th = ths[dc];
+    if (th && !th.classList.contains('no-sort')) {
+      th.setAttribute('data-dir', dd);
+      var a = th.querySelector('.sort-arrow');
+      if (a) a.textContent = dd === 'asc' ? ' \u25B2' : ' \u25BC';
+      _sortTable(table, dc, dd);
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('table.sortable').forEach(_initSortable);
+});
 </script>
 {% endblock %}
-

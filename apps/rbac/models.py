@@ -43,6 +43,24 @@ class Role(models.Model):
     is_system = models.BooleanField(default=False)
     permissions = models.ManyToManyField(Permission, through="RolePermission",
                                          related_name="roles")
+
+    # --- Per-day quotas ---------------------------------------------------
+    # Semantics for BOTH fields:
+    #   * blank / NULL  -> unlimited (no cap)
+    #   * 0             -> NOT ALLOWED AT ALL (fully blocked)
+    #   * N (> 0)       -> at most N per calendar day
+    # A user's effective cap is the MOST PERMISSIVE across all their roles
+    # (see apps.rbac.permissions.user_daily_limit) because access is the
+    # union of roles.
+    max_meetings_per_day = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Max handover meetings a holder may book per day. "
+                  "Blank = unlimited, 0 = not allowed.")
+    max_nmn_verifications_per_day = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Max 'no-meeting-needed' (doc-only) verifications a holder "
+                  "may run per day. Blank = unlimited, 0 = not allowed.")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

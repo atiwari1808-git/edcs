@@ -53,7 +53,8 @@ DEFAULT_ROLES = {
         "legacy_role": "ADMIN",
     },
     "Scrum Master": {
-        "description": "Runs validations, manages schedules and reports. No role/user administration.",
+        "description": "Runs validations, manages schedules and reports. "
+                       "No role/user administration.",
         "codenames": [
             "dashboard.view",
             "verification.view", "verification.create", "verification.execute",
@@ -109,3 +110,31 @@ def user_has_permission(user, codename: str) -> bool:
     return Permission.objects.filter(
         codename=codename, rolepermission__role__user_roles__user=user
     ).exists()
+
+
+def user_daily_limit(user, field: str):
+    """Effective per-day quota for `user` for the Role field `field`
+    (either "max_meetings_per_day" or "max_nmn_verifications_per_day").
+
+    Returns:
+        None -> unlimited (superuser, no roles, or at least one role leaves
+                the field blank),
+        int  -> a concrete cap; 0 means fully blocked.
+
+    Because a user's access is the UNION of their roles, the MOST PERMISSIVE
+    value wins: any role with a blank (unlimited) value makes the effective
+    limit unlimited; otherwise the highest numeric cap applies (so every
+    role must agree on 0 for the action to be fully blocked)."""
+    if not getattr(user, "is_authenticated", False):
+        return 0
+    if getattr(user, "is_superuser", False):
+        return None
+    from .models import Role
+    values = list(
+        Role.objects.filter(user_roles__user=user).values_list(field, flat=True)
+    )
+    if not values:
+        return None
+    if any(v is None for v in values):
+        return None
+    return max(values)

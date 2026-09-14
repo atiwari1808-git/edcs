@@ -8,4 +8,5 @@ urlpatterns = [
     path("api/v1/meetings", views.book, name="book"),
     path("meetings/<uuid:meeting_id>/", views.confirmation, name="confirmation"),
     path("meetings/<uuid:meeting_id>/cancel/", views.cancel_booking, name="cancel-booking"),
+    path("meetings/<uuid:meeting_id>/reschedule/", views.reschedule_booking, name="reschedule-booking"),
 ]

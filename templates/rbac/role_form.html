@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}{% if role %}Edit{% else %}New{% endif %} Role · Handover Scheduler{% endblock %}
+{% block title %}{% if role %}Edit{% else %}New{% endif %} Role — Handover Scheduler{% endblock %}
 {% block content %}
 <h1><i class="bi bi-shield-lock-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>{% if role %}Edit Role: {{ role.name }}{% else %}New Role{% endif %}</h1>
 <p>Group permissions by module below. A user's effective access is the union of every role they hold.</p>
@@ -15,6 +15,30 @@
     <label>Description</label>
     <input type="text" name="description" value="{{ role.description|default:'' }}"
            placeholder="What this role is for">
+  </div>
+
+  <label style="display:block;margin:18px 0 8px">Daily limits</label>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px">
+    <div class="field-group" style="flex:1;min-width:250px;margin-bottom:0">
+      <label>Max handover meetings / day</label>
+      <input type="number" name="max_meetings_per_day" min="0" step="1"
+             value="{{ role.max_meetings_per_day|default_if_none:'' }}"
+             placeholder="blank = unlimited">
+      <small style="display:block;color:var(--muted);font-size:.72rem;margin-top:4px">
+        How many handover meetings a holder of this role can book per day.
+        Leave blank for unlimited; enter <strong>0</strong> to fully block booking.
+      </small>
+    </div>
+    <div class="field-group" style="flex:1;min-width:250px;margin-bottom:0">
+      <label>Max no-meeting-needed verifications / day</label>
+      <input type="number" name="max_nmn_verifications_per_day" min="0" step="1"
+             value="{{ role.max_nmn_verifications_per_day|default_if_none:'' }}"
+             placeholder="blank = unlimited">
+      <small style="display:block;color:var(--muted);font-size:.72rem;margin-top:4px">
+        How many doc-only (Healthcheck / Backup) verifications a holder can run per day.
+        Leave blank for unlimited; enter <strong>0</strong> to fully block them.
+      </small>
+    </div>
   </div>
 
   <label style="display:block;margin:18px 0 8px">Permissions</label>
