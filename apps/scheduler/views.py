@@ -264,6 +264,12 @@ def cancel_booking(request, meeting_id):
             "cancellation from Outlook shortly.")
     elif m.validation_run is None or not pa_sent:
         messages.info(request, "Booking cancelled.")
+    # Notify all participants that the handover was cancelled.
+    try:
+        from apps.notifications.handover_emails import meeting_cancelled_notice
+        meeting_cancelled_notice(m, reason=reason, actor=request.user)
+    except Exception:
+        pass
     return redirect("/")
 
 
@@ -380,4 +386,10 @@ def reschedule_booking(request, meeting_id):
     messages.success(request,
         f"Handover call rescheduled to {d} ({slot.label}). A new Teams meeting "
         f"request has been sent and the old slot has been cancelled.")
+    # Notify all participants of the reschedule (old -> new).
+    try:
+        from apps.notifications.handover_emails import meeting_rescheduled_notice
+        meeting_rescheduled_notice(old_meeting, new_meeting, actor=request.user)
+    except Exception:
+        pass
     return redirect("/")

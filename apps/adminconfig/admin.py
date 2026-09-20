@@ -41,4 +41,4 @@ class MeetingTemplateAdmin(admin.ModelAdmin):
 
 for m in (models.Holiday, models.BlockedDate, models.EmailTemplate, models.AppSetting):
     admin.site.register(m)
-
+from . import followup_admin  # noqa: F401  (registers HandoverFollowupConfig + EscalationPolicy admin)

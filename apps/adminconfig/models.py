@@ -139,3 +139,4 @@ class MeetingTemplate(models.Model):
     default_attendees = models.JSONField(default=list,
                                          help_text='["email1", "email2"]')
 
+from .followup_models import HandoverFollowupConfig, EscalationPolicy  # noqa: E402,F401
