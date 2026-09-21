@@ -2,22 +2,20 @@ import json
 import re
 from datetime import datetime, date
 from zoneinfo import ZoneInfo
-
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.http import require_POST
-
 from apps.adminconfig.models import Holiday, MeetingTemplate, ToolConfig
 from apps.audit.log import log_action
 from apps.rbac.decorators import require_permission
-from apps.rbac.permissions import user_daily_limit
 from apps.validation.models import ValidationRun
 from .availability import month_map, free_slots, date_status
 from .models import Meeting, MeetingAttendee, DailySlot
 from .tasks import schedule_reminders_for
+from .reason_validation import validate_reason
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -30,25 +28,6 @@ def _parse_email_list(raw, required):
         if not EMAIL_RE.fullmatch(e):
             return None, f"'{e}' is not a valid email address."
     return emails, ""
-
-
-def _build_meeting_subject_body(tool_key, run, ref):
-    """Resolve the meeting subject/body from the tool's template (or the
-    built-in default), stamping in the correlation `ref`."""
-    tmpl = (MeetingTemplate.objects.filter(tool__key=tool_key).first()
-            or MeetingTemplate.objects.filter(tool__isnull=True).first())
-    fmt_kwargs = dict(
-        jira_id=run.jira_id if run else "",
-        automation_name=run.automation_name if run else "",
-        tool_name=(run.tool.display_name if run else tool_key),
-        ref=ref)
-    subject = (tmpl.subject_pattern if tmpl else
-               "Handover Call — {tool_name} | {jira_id} — {automation_name} [{ref}]"
-               ).format(**fmt_kwargs)
-    body = (tmpl.body_html if tmpl else "").format(**fmt_kwargs)
-    compulsory = [e.strip().lower() for e in (tmpl.default_attendees if tmpl else [])
-                  if e.strip()]
-    return subject, body, compulsory
 
 
 @require_permission("schedules.view")
@@ -66,9 +45,8 @@ def scheduler_page(request):
                .order_by("-finished_at").first())
         if not run:
             messages.warning(request,
-                "Please complete a successful verification before scheduling.")
+                             "Please complete a successful verification before scheduling.")
             return redirect("/verify/")
-
     holidays = Holiday.objects.filter(date__gte=date.today()).order_by("date")[:12]
     slots = DailySlot.objects.filter(is_active=True)
     return render(request, "scheduler.html", {
@@ -97,18 +75,15 @@ def slots_json(request):
 def book(request):
     data = json.loads(request.body or "{}")
     tz = ZoneInfo(settings.TIME_ZONE)
-
     run = get_object_or_404(ValidationRun, pk=data.get("run_id"))
     if run.status != "PASSED":
         return JsonResponse({"error": "Validation has not passed."}, status=400)
     tool_key = run.tool.key
-
     try:
         d = date.fromisoformat(data.get("date", ""))
     except ValueError:
         return JsonResponse({"error": "Please choose a valid date."}, status=400)
     slot = get_object_or_404(DailySlot, pk=data.get("slot_id"), is_active=True)
-
     devs, err = _parse_email_list(data.get("developer_email"), required=True)
     if err:
         return JsonResponse({"error": f"Developer email: {err}"}, status=400)
@@ -118,14 +93,12 @@ def book(request):
     ccs, err = _parse_email_list(data.get("cc_email"), required=False)
     if err:
         return JsonResponse({"error": f"CC email: {err}"}, status=400)
-
     # Exclusivity re-check (also enforced by the DB constraint)
     if date_status(tool_key, d) != "bookable" or \
        not any(s["slot_id"] == slot.id for s in free_slots(tool_key, d)):
         return JsonResponse(
             {"error": "That date/slot is no longer available for this tool."},
             status=409)
-
     # One active meeting per JIRA ID, globally across all tools — a JIRA
     # represents one handover, so a second booking while the first is
     # still PENDING/REQUESTED/CONFIRMED is almost always a mistake.
@@ -133,51 +106,34 @@ def book(request):
             validation_run__jira_id=run.jira_id,
             status__in=["PENDING", "REQUESTED", "CONFIRMED"]).exists():
         return JsonResponse(
-            {"error": f"This JIRA ID already has a scheduled meeting. "
-                      f"Please cancel the existing meeting before scheduling again."},
+            {"error": "This JIRA ID already has a scheduled meeting. "
+                      "Please cancel the existing meeting before scheduling again."},
             status=409)
-
-    # Per-day booking quota from the user's role(s).
-    #   None -> unlimited, 0 -> not allowed, N -> at most N/day.
-    from django.utils import timezone as _tz
-    cap = user_daily_limit(request.user, "max_meetings_per_day")
-    if cap is not None:
-        booked_today = Meeting.objects.filter(
-            organizer=request.user,
-            created_at__date=_tz.localdate(),
-            status__in=["PENDING", "REQUESTED", "CONFIRMED"]).count()
-        if cap == 0:
-            return JsonResponse(
-                {"error": "Your role does not permit booking handover meetings."},
-                status=403)
-        if booked_today >= cap:
-            return JsonResponse(
-                {"error": f"Daily limit reached: your role allows {cap} handover "
-                          f"meeting(s) per day. Please try again tomorrow or ask "
-                          f"an administrator."},
-                status=403)
-
+    tmpl = (MeetingTemplate.objects.filter(tool__key=tool_key).first()
+            or MeetingTemplate.objects.filter(tool__isnull=True).first())
     # A short, stable, unique id per meeting — the same one Power Automate
     # uses to find-and-cancel the right calendar event later (meeting_ref).
-    # Generating the meeting's PK explicitly here (rather than letting
-    # Meeting.objects.create() default it) lets us bake this id into the
-    # subject/body BEFORE the row exists.
     import uuid as _uuid
     from . import pa_mail
     meeting_id = _uuid.uuid4()
     ref = str(meeting_id).replace("-", "")[:12]
-
-    subject, body, compulsory = _build_meeting_subject_body(tool_key, run, ref)
+    fmt_kwargs = dict(jira_id=run.jira_id, automation_name=run.automation_name,
+                      tool_name=run.tool.display_name, ref=ref)
+    subject = (tmpl.subject_pattern if tmpl else
+               "Handover Call - {tool_name} | {jira_id} - {automation_name} [{ref}]"
+               ).format(**fmt_kwargs)
+    body = (tmpl.body_html if tmpl else "").format(**fmt_kwargs)
+    compulsory = [e.strip().lower() for e in (tmpl.default_attendees if tmpl else [])
+                  if e.strip()]
     organizer_email = (request.user.email or "").lower()
-
     start = datetime.combine(d, slot.start_time, tzinfo=tz)
     end = datetime.combine(d, slot.end_time, tzinfo=tz)
     meeting = Meeting.objects.create(
         id=meeting_id, validation_run=run, organizer=request.user, tool_key=tool_key,
         booking_date=d, slot=slot, subject=subject, body_html=body,
         start_at=start, end_at=end, timezone=settings.TIME_ZONE)
-
     seen = set()
+
     def add(emails, kind):
         for e in emails:
             if e not in seen:
@@ -189,7 +145,6 @@ def book(request):
     if organizer_email:
         add([organizer_email], "REQUIRED")
     add(ccs, "CC")
-
     try:
         pa_mail.send_meeting_request(meeting)
         meeting.status = Meeting.Status.REQUESTED
@@ -205,7 +160,7 @@ def book(request):
         return JsonResponse(
             {"error": f"Could not send the meeting request email: {e}"}, status=502)
     log_action(request.user, "meeting.created", "schedules",
-              f"{tool_key} / {run.jira_id} on {d} ({slot.label})")
+               f"{tool_key} / {run.jira_id} on {d} ({slot.label})")
     return JsonResponse({"meeting_id": str(meeting.id)}, status=201)
 
 
@@ -218,22 +173,21 @@ def confirmation(request, meeting_id):
 @require_permission("schedules.cancel")
 @require_POST
 def cancel_booking(request, meeting_id):
-    """Dashboard cancel: requires a reason (mandatory, per audit policy),
-    sends the [EDCS-CANCEL] Power Automate trigger so the real Teams/Outlook
-    meeting is cancelled, then soft-cancels locally (which frees the
-    tool/date/slot) and records who cancelled it, when, and why."""
+    """Dashboard cancel: requires a meaningful reason (mandatory, per audit
+    policy — junk values like 'NA'/'None' are rejected), sends the
+    [EDCS-CANCEL] Power Automate trigger so the real Teams/Outlook meeting is
+    cancelled, then soft-cancels locally (which frees the tool/date/slot) and
+    records who cancelled it, when, and why."""
     m = get_object_or_404(Meeting, pk=meeting_id)
     if m.status == Meeting.Status.CANCELLED:
         messages.info(request, "That booking is already cancelled.")
         return redirect("/")
-
-    reason = (request.POST.get("reason") or "").strip()
-    if not reason:
-        messages.error(request, "A cancellation reason is required.")
+    # ── Reason quality gate (Req 4) ───────────────────────────────────────
+    ok, cleaned = validate_reason(request.POST.get("reason"))
+    if not ok:
+        messages.error(request, cleaned)   # cleaned holds the error message
         return redirect("/")
-    if len(reason) > 1000:
-        reason = reason[:1000]
-
+    reason = cleaned
     pa_sent = False
     if m.status == Meeting.Status.REQUESTED:   # a real meeting request went out
         from . import pa_mail
@@ -242,10 +196,9 @@ def cancel_booking(request, meeting_id):
             pa_sent = True
         except Exception as e:
             messages.warning(request,
-                f"Booking cancelled in the tool, but the Teams-cancellation "
-                f"email could not be sent ({e}). Cancel the Outlook invite "
-                f"manually or retry later.")
-
+                             f"Booking cancelled in the tool, but the Teams-cancellation "
+                             f"email could not be sent ({e}). Cancel the Outlook invite "
+                             f"manually or retry later.")
     from django.utils import timezone
     m.status = Meeting.Status.CANCELLED
     m.cancelled_by = request.user
@@ -253,143 +206,128 @@ def cancel_booking(request, meeting_id):
     m.cancellation_reason = reason
     m.save()
     m.reminders.update(status="CANCELLED")
-
     log_action(request.user, "meeting.cancelled", "schedules",
-              f"Meeting {m.id} ({m.subject}) cancelled. Reason: {reason}")
-
+               f"Meeting {m.id} ({m.subject}) cancelled. Reason: {reason}")
     if pa_sent:
         messages.info(request,
-            "Booking cancelled. The Teams meeting cancellation has been sent "
-            "to the scheduling automation — attendees will receive the "
-            "cancellation from Outlook shortly.")
+                      "Booking cancelled. The Teams meeting cancellation has been sent "
+                      "to the scheduling automation — attendees will receive the "
+                      "cancellation from Outlook shortly.")
     elif m.validation_run is None or not pa_sent:
         messages.info(request, "Booking cancelled.")
-    # Notify all participants that the handover was cancelled.
-    try:
-        from apps.notifications.handover_emails import meeting_cancelled_notice
-        meeting_cancelled_notice(m, reason=reason, actor=request.user)
-    except Exception:
-        pass
     return redirect("/")
 
 
 @require_permission("schedules.edit")
 @require_POST
 def reschedule_booking(request, meeting_id):
-    """Move an existing booking to a new date/slot by REUSING the two
-    existing Power Automate flows — no new flow is required:
+    """Reschedule a handover to a new date/slot by REUSING the existing Power
+    Automate flows (no new flow needed):
 
-        1. Send the [EDCS-CANCEL] trigger for the OLD slot (cancels the
-           existing Teams/Outlook event via its [EDCSREF-<ref>] marker).
-        2. Send a fresh [EDCS-GATE-MEETING] create trigger for the NEW slot
-           (a brand-new meeting row with a new ref -> new Teams event).
+      1. Create a brand-new meeting for the new date/slot and send the
+         [EDCS-GATE-MEETING] create trigger (same path as book()).
+      2. ONLY if that succeeds, cancel the original via the [EDCS-CANCEL]
+         trigger and soft-cancel it locally with reason "Rescheduled to ...".
 
-    Implemented as cancel-old + create-new so the old and new events each
-    carry their own correlation ref, exactly like a manual cancel followed
-    by a manual booking. Attendees are copied across automatically.
-    A reschedule is NOT counted against the daily booking quota (it moves an
-    existing handover rather than creating new demand)."""
+    Ordering is deliberate: if the new request can't be sent we roll it back
+    and leave the original booking completely untouched, so a mail failure can
+    never destroy an existing handover.
+    """
+    from django.utils import timezone
+    import uuid as _uuid
+    from . import pa_mail
+
     old = get_object_or_404(Meeting, pk=meeting_id)
-    if old.status not in (Meeting.Status.REQUESTED, Meeting.Status.PENDING,
-                          Meeting.Status.CONFIRMED):
-        messages.error(request, "Only an active booking can be rescheduled.")
+    if old.status == Meeting.Status.CANCELLED:
+        messages.info(request,
+                      "That booking is already cancelled and cannot be rescheduled.")
         return redirect("/")
 
     run = old.validation_run
     tool_key = old.tool_key
     tz = ZoneInfo(settings.TIME_ZONE)
 
-    # ---- validate the requested new date/slot -----------------------------
     try:
-        d = date.fromisoformat((request.POST.get("date") or "").strip())
+        d = date.fromisoformat(request.POST.get("date", ""))
     except ValueError:
-        messages.error(request, "Please choose a valid new date.")
+        messages.error(request, "Please choose a valid new date to reschedule to.")
         return redirect("/")
     slot = get_object_or_404(DailySlot, pk=request.POST.get("slot_id"), is_active=True)
-    reason = (request.POST.get("reason") or "").strip()[:1000]
+
+    if old.booking_date == d and old.slot_id == slot.id:
+        messages.error(request,
+                       "The new date and slot are the same as the current booking.")
+        return redirect("/")
 
     if date_status(tool_key, d) != "bookable" or \
        not any(s["slot_id"] == slot.id for s in free_slots(tool_key, d)):
         messages.error(request,
-            "That date/slot is no longer available for this tool. "
-            "Please pick another slot.")
+                       "That date/slot is no longer available for this tool.")
         return redirect("/")
 
-    from . import pa_mail
-    from django.utils import timezone as _tz
-
-    # Reschedule = create-the-NEW-meeting-first, then cancel the OLD one.
-    # This ordering guarantees a failed email send can NEVER leave the user
-    # with the old slot cancelled and nothing booked:
-    #   1) create the NEW meeting row + send its [EDCS-GATE-MEETING] trigger.
-    #      If that send fails, delete the new row and KEEP the old booking
-    #      exactly as it was.
-    #   2) only once the new request is safely sent do we fire [EDCS-CANCEL]
-    #      for the OLD meeting and soft-cancel it locally.
-    # (The new date/slot always differs from the old, so the two bookings
-    #  never collide on the unique tool/date/slot constraint.)
-
-    # ---- 1) Create + send the NEW meeting (new slot) ---------------------
-    import uuid as _uuid
-    meeting_id_new = _uuid.uuid4()
-    ref = str(meeting_id_new).replace("-", "")[:12]
-    subject, body, _ = _build_meeting_subject_body(tool_key, run, ref)
-
+    # ── Build the new meeting (mirror of book()) ─────────────────────────
+    tmpl = (MeetingTemplate.objects.filter(tool__key=tool_key).first()
+            or MeetingTemplate.objects.filter(tool__isnull=True).first())
+    new_id = _uuid.uuid4()
+    ref = str(new_id).replace("-", "")[:12]
+    fmt_kwargs = dict(jira_id=(run.jira_id if run else ""),
+                      automation_name=(run.automation_name if run else ""),
+                      tool_name=(run.tool.display_name if run else tool_key),
+                      ref=ref)
+    subject = (tmpl.subject_pattern if tmpl else
+               "Handover Call - {tool_name} | {jira_id} - {automation_name} [{ref}]"
+               ).format(**fmt_kwargs)
+    body = (tmpl.body_html if tmpl else "").format(**fmt_kwargs)
     start = datetime.combine(d, slot.start_time, tzinfo=tz)
     end = datetime.combine(d, slot.end_time, tzinfo=tz)
     new = Meeting.objects.create(
-        id=meeting_id_new, validation_run=run, organizer=old.organizer,
-        tool_key=tool_key, booking_date=d, slot=slot, subject=subject,
-        body_html=body, start_at=start, end_at=end, timezone=settings.TIME_ZONE)
-
-    # Copy the old meeting's attendee list onto the new booking.
-    for a in old.attendees.all():
+        id=new_id, validation_run=run, organizer=old.organizer, tool_key=tool_key,
+        booking_date=d, slot=slot, subject=subject, body_html=body,
+        start_at=start, end_at=end, timezone=settings.TIME_ZONE)
+    # Copy every attendee from the original booking
+    for a in MeetingAttendee.objects.filter(meeting=old):
         MeetingAttendee.objects.create(meeting=new, email=a.email, type=a.type)
 
+    # ── Send the CREATE request first; roll back on failure ──────────────
     try:
         pa_mail.send_meeting_request(new)
         new.status = Meeting.Status.REQUESTED
         new.save()
         schedule_reminders_for(new)
     except Exception as e:
-        # New request failed — roll the new row back and leave the existing
-        # booking fully intact so the user hasn't lost anything.
+        MeetingAttendee.objects.filter(meeting=new).delete()
         new.delete()
         messages.error(request,
-            f"Could not send the new meeting request ({e}). Your existing "
-            f"booking has been left unchanged — please try rescheduling again.")
+                       f"Could not send the new meeting request ({e}). Your original "
+                       f"booking has been left unchanged — nothing was rescheduled.")
         return redirect("/")
 
-    # ---- 2) New booking is live — now cancel the OLD meeting (old slot) --
-    if old.status == Meeting.Status.REQUESTED:
-        try:
-            pa_mail.send_meeting_cancel(old)
-        except Exception as e:
-            messages.warning(request,
-                f"New meeting booked, but the cancellation of the old slot "
-                f"could not be sent ({e}). Cancel the old Outlook invite "
-                f"manually if it remains.")
-    resched_note = f"Rescheduled to {d} ({slot.label})"
-    old.status = Meeting.Status.CANCELLED
-    old.cancelled_by = request.user
-    old.cancelled_at = _tz.now()
-    old.cancellation_reason = (f"{resched_note}. {reason}" if reason else resched_note)
-    old.save()
-    old.reminders.update(status="CANCELLED")
-
-    log_action(request.user, "meeting.cancelled", "schedules",
-               f"Meeting {old.id} rescheduled away from {old.booking_date} "
-               f"to {d} ({slot.label})")
-    log_action(request.user, "meeting.created", "schedules",
-               f"{tool_key} / {run.jira_id if run else ''} rescheduled to "
-               f"{d} ({slot.label})")
-    messages.success(request,
-        f"Handover call rescheduled to {d} ({slot.label}). A new Teams meeting "
-        f"request has been sent and the old slot has been cancelled.")
-    # Notify all participants of the reschedule (old -> new).
+    # ── New meeting is live — now cancel the original ────────────────────
+    reason = f"Rescheduled to {d.isoformat()} ({slot.label})"
     try:
-        from apps.notifications.handover_emails import meeting_rescheduled_notice
-        meeting_rescheduled_notice(old_meeting, new_meeting, actor=request.user)
+        pa_mail.send_meeting_cancel(old)
     except Exception:
         pass
+    old.status = Meeting.Status.CANCELLED
+    old.cancelled_by = request.user
+    old.cancelled_at = timezone.now()
+    old.cancellation_reason = reason
+    old.save()
+    old.reminders.update(status="CANCELLED")
+    log_action(request.user, "meeting.cancelled", "schedules",
+               f"Meeting {old.id} rescheduled -> {d} ({slot.label}); new meeting {new.id}")
+    log_action(request.user, "meeting.created", "schedules",
+               f"Rescheduled meeting {new.id} for {tool_key} / "
+               f"{(run.jira_id if run else '')} on {d} ({slot.label})")
+
+    # Optional: participant reschedule notice (only if batch-2 email module present)
+    try:
+        from apps.notifications.handover_emails import meeting_rescheduled_notice
+        meeting_rescheduled_notice(old, new, actor=request.user)
+    except Exception:
+        pass
+
+    messages.success(request,
+                     f"Handover rescheduled to {d.isoformat()} ({slot.label}). "
+                     f"Attendees will receive the updated invite from Outlook shortly.")
     return redirect("/")

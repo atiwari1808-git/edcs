@@ -1,11 +1,14 @@
-"""Run lifecycle. The scanner set is ALWAYS resolved server-side from
+"""Run lifecycle.
+The scanner set is ALWAYS resolved server-side from
 ToolConfig — the client cannot choose which scanners execute."""
 import re
 from celery import chord
-from apps.adminconfig.models import ToolConfig, AutomationType
+from apps.adminconfig.models import ToolConfig, AutomationType, JiraType
 from apps.scanners.bitbucket_adapter import validate_repo_url
 from .models import ValidationRun
 from .tasks import run_scanner, finalize_validation
+
+_JIRA_RE = r"[A-Z][A-Z0-9]+-\d+"
 
 
 class ValidationError(Exception):
@@ -14,7 +17,8 @@ class ValidationError(Exception):
 
 def start_run(user, tool_key: str, jira_id: str, repo_url: str = "",
               customer_name: str = "", automation_name: str = "",
-              automation_type_key: str = "") -> ValidationRun:
+              automation_type_key: str = "", jira_type_key: str = "",
+              enhancement_jira_id: str = "", eridoc_path: str = "") -> ValidationRun:
     try:
         tool = ToolConfig.objects.get(key=tool_key, is_active=True)
     except ToolConfig.DoesNotExist:
@@ -46,34 +50,38 @@ def start_run(user, tool_key: str, jira_id: str, repo_url: str = "",
         if automation_type is None:
             raise ValidationError("Selected automation type is not valid.")
 
-    # ── Per-day quota for "no-meeting-needed" (doc-only) verifications ────
-    # Only applies when the chosen automation type does NOT require
-    # scheduling (Healthcheck / Backup). Semantics of the role field:
-    #   None -> unlimited, 0 -> not allowed at all, N -> at most N per day.
-    if automation_type is not None and not automation_type.requires_scheduling:
-        from apps.rbac.permissions import user_daily_limit
-        from django.utils import timezone as _tz
-        cap = user_daily_limit(user, "max_nmn_verifications_per_day")
-        if cap is not None:
-            if cap == 0:
-                raise ValidationError(
-                    "Your role does not permit running no-meeting-needed "
-                    "(document-only) verifications. Please contact an "
-                    "administrator.")
-            run_today = ValidationRun.objects.filter(
-                requested_by=user,
-                automation_type__requires_scheduling=False,
-                started_at__date=_tz.localdate()).count()
-            if run_today >= cap:
-                raise ValidationError(
-                    f"Daily limit reached: your role allows {cap} "
-                    f"no-meeting-needed verification(s) per day. Please try "
-                    f"again tomorrow or ask an administrator.")
+    # ── Validate JIRA type (optional — falls back to plain Story) ─────────
+    jira_type = None
+    if jira_type_key:
+        jira_type = JiraType.objects.filter(
+            key=jira_type_key, is_active=True).first()
+        if jira_type is None:
+            raise ValidationError("Selected JIRA type is not valid.")
 
-    # ── Validate JIRA ID ─────────────────────────────────────────────────
-    jira_id = jira_id.strip().upper()
-    if not re.fullmatch(r"[A-Z][A-Z0-9]+-\d+", jira_id):
+    # ── Validate main JIRA ID ─────────────────────────────────────────────
+    jira_id = (jira_id or "").strip().upper()
+    if not re.fullmatch(_JIRA_RE, jira_id):
         raise ValidationError("JIRA ID must look like PROJ-1234.")
+
+    # ── Enhancement vs Story handling ─────────────────────────────────────
+    # For an Enhancement type the main field is the PARENT story, and a
+    # separate enhancement id is the independent unit that gets verified /
+    # scheduled. For a Story (or no type) the main field is the run's jira_id.
+    parent_jira_id = ""
+    enhancement_jira_id = (enhancement_jira_id or "").strip().upper()
+    if jira_type and jira_type.requires_parent:
+        if not enhancement_jira_id:
+            raise ValidationError(
+                "An Enhancement JIRA ID is required for this JIRA type.")
+        if not re.fullmatch(_JIRA_RE, enhancement_jira_id):
+            raise ValidationError("Enhancement JIRA ID must look like PROJ-1234.")
+        if enhancement_jira_id == jira_id:
+            raise ValidationError(
+                "Enhancement JIRA ID must differ from the Parent JIRA.")
+        parent_jira_id = jira_id            # main field is the parent story
+        jira_id = enhancement_jira_id       # run is keyed on the enhancement
+    else:
+        enhancement_jira_id = ""            # ignored for Story-style types
 
     # ── Validate repo URL ─────────────────────────────────────────────────
     if tool.requires_repo_url:
@@ -83,6 +91,17 @@ def start_run(user, tool_key: str, jira_id: str, repo_url: str = "",
             raise ValidationError("Repository URL host is not on the allow-list.")
     else:
         repo_url = ""   # silently dropped per design
+
+    # ── Validate ERIDOC folder path (required / optional per tool) ────────
+    eridoc_path = (eridoc_path or "").strip()
+    if "ERIDOC" in (tool.scanners or []):
+        if getattr(tool, "eridoc_path_mode", "OPTIONAL") == "REQUIRED" and not eridoc_path:
+            raise ValidationError(
+                "An ERIDOC folder path is required for this tool.")
+        if len(eridoc_path) > 512:
+            raise ValidationError("ERIDOC folder path is too long (max 512 chars).")
+    else:
+        eridoc_path = ""   # not applicable when the tool has no ERIDOC scanner
 
     # ── Prevent duplicate in-progress runs ───────────────────────────────
     if ValidationRun.objects.filter(
@@ -97,7 +116,11 @@ def start_run(user, tool_key: str, jira_id: str, repo_url: str = "",
         requested_by=user,
         customer_name=customer_name,
         automation_name=automation_name,
-        automation_type=automation_type,      # ← new FK
+        automation_type=automation_type,
+        jira_type=jira_type,
+        parent_jira_id=parent_jira_id,
+        enhancement_jira_id=enhancement_jira_id,
+        eridoc_path=eridoc_path,
         status=ValidationRun.Status.RUNNING,
     )
     # Pre-create one PENDING row per scanner so the progress UI can render
@@ -120,7 +143,6 @@ def _dispatch(run, scanners):
         header = [run_scanner.s(str(run.id), s) for s in scanners]
         chord(header)(finalize_validation.s(str(run.id)))
         return
-
     import threading
 
     def _worker():
@@ -134,7 +156,6 @@ def _dispatch(run, scanners):
         for t in threads:
             t.join()
         finalize_validation.apply(args=(None, str(run.id)))
-
     threading.Thread(target=_worker, daemon=True).start()
 
 

@@ -1,505 +1,363 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard · Handover Scheduler{% endblock %}
-{% block content %}
+{% block extra_css %}
 <style>
-  /* Keep wide dashboard tables tidy: scroll horizontally inside the panel
-     instead of overflowing the page, and keep headers on a single line so
-     columns stay aligned. */
-  .table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  .table-scroll .data-table { min-width:1040px; }
-  .data-table th { white-space:nowrap; vertical-align:middle; }
-  .data-table td { vertical-align:middle; }
-  .data-table td.wrap-truncate { white-space:normal; max-width:220px; }
-  /* Sortable headers */
-  .data-table th.sortable-th { cursor:pointer; user-select:none; }
-  .data-table th.sortable-th:hover { color:var(--indigo); }
-  .data-table th .sort-arrow { font-size:.7rem; opacity:.8; margin-left:2px; }
-  .data-table th.no-sort { cursor:default; }
-  .hd-date { font-weight:600; }
-  .hd-slot { display:block; color:#6b7a8d; font-size:.76rem; }
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;}
+.table-scroll .data-table{min-width:1150px;border-collapse:collapse;}
+.table-scroll .data-table th{white-space:nowrap;vertical-align:middle;position:sticky;top:0;background:var(--surface,#fff);z-index:1;}
+.table-scroll .data-table td{vertical-align:middle;}
+.table-scroll .data-table th,.table-scroll .data-table td{padding:10px 12px;}
 </style>
+{% endblock %}
+{% block content %}
 <div class="dashboard-header">
-  <div>
-    <h1><i class="bi bi-speedometer2" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Dashboard</h1>
-    <p>All scheduled handover calls and document-only verifications.</p>
-  </div>
-  {% if "verification.view" in perms_set %}
-  <a href="/verify/" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> New Handover</a>
-  {% endif %}
+<div>
+<h1><i class="bi bi-speedometer2" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Dashboard</h1>
+<p>All scheduled handover calls and document-only verifications.</p>
 </div>
-
+{% if "verification.view" in perms_set %}
+<a href="/verify/" class="btn btn-primary"><i class="bi bi-plus-circle-fill"></i> New Handover</a>
+{% endif %}
+</div>
 <!-- ── Stat cards (5 cards) ─────────────────────────────────────────── -->
 <div class="stat-grid">
-  <div class="stat-card">
-    <div class="stat-icon-badge acc-indigo"><i class="bi bi-layers-fill"></i></div>
-    <div><h3>{{ stats.total }}</h3><span>Total Bookings</span></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon-badge acc-blue"><i class="bi bi-calendar3"></i></div>
-    <div><h3>{{ stats.upcoming }}</h3><span>Upcoming</span></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon-badge acc-green"><i class="bi bi-check-circle-fill"></i></div>
-    <div><h3>{{ stats.completed }}</h3><span>Completed</span></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon-badge acc-red"><i class="bi bi-x-circle-fill"></i></div>
-    <div><h3>{{ stats.cancelled }}</h3><span>Cancelled</span></div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-icon-badge acc-amber" style="background:rgba(249,168,37,.15)">
-      <i class="bi bi-envelope-check-fill" style="color:#f9a825"></i>
-    </div>
-    <div><h3>{{ stats.no_meeting }}</h3><span>No Meeting Needed</span></div>
-  </div>
+<div class="stat-card">
+<div class="stat-icon-badge acc-indigo"><i class="bi bi-layers-fill"></i></div>
+<div><h3>{{ stats.total }}</h3><span>Total Bookings</span></div>
 </div>
-
+<div class="stat-card">
+<div class="stat-icon-badge acc-blue"><i class="bi bi-calendar3"></i></div>
+<div><h3>{{ stats.upcoming }}</h3><span>Upcoming</span></div>
+</div>
+<div class="stat-card">
+<div class="stat-icon-badge acc-green"><i class="bi bi-check-circle-fill"></i></div>
+<div><h3>{{ stats.completed }}</h3><span>Completed</span></div>
+</div>
+<div class="stat-card">
+<div class="stat-icon-badge acc-red"><i class="bi bi-x-circle-fill"></i></div>
+<div><h3>{{ stats.cancelled }}</h3><span>Cancelled</span></div>
+</div>
+<!-- NEW stat card -->
+<div class="stat-card">
+<div class="stat-icon-badge acc-amber" style="background:rgba(249,168,37,.15)">
+<i class="bi bi-envelope-check-fill" style="color:#f9a825"></i>
+</div>
+<div><h3>{{ stats.no_meeting }}</h3><span>No Meeting Needed</span></div>
+</div>
+</div>
 <!-- ── Pending activations ────────────────────────────────────────────── -->
 {% if pending_users %}
 <div class="panel pad" style="margin-bottom:20px;border-left:4px solid var(--warning)">
-  <h2 style="font-size:.9rem">
-    <i class="bi bi-person-plus-fill" style="color:var(--amber-text);margin-right:6px"></i>
-    Pending account activations
-  </h2>
-  <table class="data-table">
-    <thead>
-      <tr><th>Username</th><th>Name</th><th>Email</th><th>Registered</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for u in pending_users %}
-      <tr>
-        <td>{{ u.username }}</td>
-        <td>{{ u.get_full_name }}</td>
-        <td>{{ u.email }}</td>
-        <td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
-        <td>
-          <form method="post" action="/accounts/{{ u.id }}/activate/" style="margin:0">
-            {% csrf_token %}
-            <button class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> Activate</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<h2 style="font-size:.9rem">
+<i class="bi bi-person-plus-fill" style="color:var(--amber-text);margin-right:6px"></i>
+Pending account activations
+</h2>
+<div class="table-scroll">
+<table class="data-table">
+<thead>
+<tr><th>Username</th><th>Name</th><th>Email</th><th>Registered</th><th></th></tr>
+</thead>
+<tbody>
+{% for u in pending_users %}
+<tr>
+<td>{{ u.username }}</td>
+<td>{{ u.get_full_name }}</td>
+<td>{{ u.email }}</td>
+<td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
+<td>
+<form method="post" action="/accounts/{{ u.id }}/activate/" style="margin:0">
+{% csrf_token %}
+<button class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> Activate</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
 </div>
 {% endif %}
-
 <!-- ── Filters ────────────────────────────────────────────────────────── -->
 <div class="panel" style="padding:20px 22px;margin-bottom:20px">
-  <form method="get" action="/" class="filter-bar">
-    <div class="field-group" style="flex:1;min-width:200px;margin:0">
-      <label>Search</label>
-      <input type="text" name="q" placeholder="Username, tool, or JIRA ID" value="{{ query }}">
-    </div>
-    <div class="field-group" style="margin:0">
-      <label>Tool</label>
-      <select name="tool">
-        <option value="">All tools</option>
-        {% for t in tools %}
-        <option value="{{ t.key }}" {% if tool_filter == t.key %}selected{% endif %}>{{ t.display_name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="field-group" style="margin:0">
-      <label>Status</label>
-      <select name="status">
-        <option value="">All statuses</option>
-        <option value="scheduled"  {% if status_filter == "scheduled"  %}selected{% endif %}>Scheduled</option>
-        <option value="completed"  {% if status_filter == "completed"  %}selected{% endif %}>Completed</option>
-        <option value="cancelled"  {% if status_filter == "cancelled"  %}selected{% endif %}>Cancelled</option>
-        <option value="failed"     {% if status_filter == "failed"     %}selected{% endif %}>Failed</option>
-      </select>
-    </div>
-    <div class="field-group" style="margin:0">
-      <label>From</label><input type="date" name="date_from" value="{{ date_from }}">
-    </div>
-    <div class="field-group" style="margin:0">
-      <label>To</label><input type="date" name="date_to" value="{{ date_to }}">
-    </div>
-    <button type="submit" class="btn btn-secondary">Apply Filters</button>
-    <a href="/" class="btn btn-ghost">Reset</a>
-  </form>
+<form method="get" action="/" class="filter-bar">
+<div class="field-group" style="flex:1;min-width:200px;margin:0">
+<label>Search</label>
+<input type="text" name="q" placeholder="Username, tool, JIRA, or Scrum Master" value="{{ query }}">
 </div>
-
+<div class="field-group" style="margin:0">
+<label>Tool</label>
+<select name="tool">
+<option value="">All tools</option>
+{% for t in tools %}
+<option value="{{ t.key }}" {% if tool_filter == t.key %}selected{% endif %}>{{ t.display_name }}</option>
+{% endfor %}
+</select>
+</div>
+<div class="field-group" style="margin:0">
+<label>JIRA Type</label>
+<select name="jira_type">
+<option value="">All JIRA types</option>
+{% for jt in jira_types %}
+<option value="{{ jt.key }}" {% if jira_type_filter == jt.key %}selected{% endif %}>{{ jt.display_name }}</option>
+{% endfor %}
+</select>
+</div>
+<div class="field-group" style="margin:0">
+<label>Status</label>
+<select name="status">
+<option value="">All statuses</option>
+<option value="scheduled"  {% if status_filter == "scheduled"  %}selected{% endif %}>Scheduled</option>
+<option value="completed"  {% if status_filter == "completed"  %}selected{% endif %}>Completed</option>
+<option value="cancelled"  {% if status_filter == "cancelled"  %}selected{% endif %}>Cancelled</option>
+<option value="failed"     {% if status_filter == "failed"     %}selected{% endif %}>Failed</option>
+</select>
+</div>
+<div class="field-group" style="margin:0">
+<label>From</label><input type="date" name="date_from" value="{{ date_from }}">
+</div>
+<div class="field-group" style="margin:0">
+<label>To</label><input type="date" name="date_to" value="{{ date_to }}">
+</div>
+<button type="submit" class="btn btn-secondary">Apply Filters</button>
+<a href="/" class="btn btn-ghost">Reset</a>
+</form>
+</div>
+{% if sm_scoped %}
+<div class="panel pad" style="margin-bottom:16px;border-left:4px solid var(--indigo);background:var(--info-bg)">
+<i class="bi bi-funnel-fill" style="color:var(--indigo)"></i>
+Showing handovers where you (<b>{{ sm_scope_email }}</b>) are the Scrum Master.
+<a href="/?all=1" style="margin-left:8px">View all handovers</a>
+</div>
+{% endif %}
 <!-- ── Bookings table (Execution / meeting-required) ─────────────────── -->
 <div class="table-toolbar">
-  <h2 style="margin:0">Handover Bookings ({{ bookings|length }})</h2>
-  {% if "reports.export" in perms_set %}
-  <a href="/dashboard/export/?q={{ query }}&tool={{ tool_filter }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}"
-     class="btn btn-secondary btn-sm">
-    <i class="bi bi-download"></i> Download Excel
-  </a>
-  {% endif %}
+<h2 style="margin:0">Handover Bookings ({{ bookings|length }})</h2>
+{% if "reports.export" in perms_set %}
+<a href="/dashboard/export/?q={{ query }}&tool={{ tool_filter }}&jira_type={{ jira_type_filter }}&status={{ status_filter }}&date_from={{ date_from }}&date_to={{ date_to }}{% if not sm_scoped %}&all=1{% endif %}"
+class="btn btn-secondary btn-sm">
+<i class="bi bi-download"></i> Download Excel
+</a>
+{% endif %}
 </div>
 {% if bookings %}
-<div class="panel table-scroll" style="padding:6px 20px">
-  <table class="data-table sortable" id="bookingsTable" data-default-col="6" data-default-dir="desc">
-    <thead>
-      <tr>
-        <th>Username</th>
-        <th>Tool</th>
-        <th>Customer</th>
-        <th>Handover Date</th>
-        <th>JIRA ID</th>
-        <th>Automation Name</th>
-        <th>Handover Initiated</th>
-        <th>Status</th>
-        <th>Cancelled By</th>
-        <th>Cancellation Reason</th>
-        <th class="no-sort"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for b in bookings %}
-      <tr>
-        <td data-sort="{{ b.m.organizer.username }}"><span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.organizer.username }}</span></td>
-        <td>{{ b.m.tool_key }}</td>
-        <td>{{ b.customer_name|default:"—" }}</td>
-        <td data-sort="{{ b.m.booking_date|default:b.m.start_at|date:"Y-m-d" }} {{ b.m.slot.label }}">
-          <span class="hd-date">{{ b.m.booking_date|default:b.m.start_at|date:"Y-m-d" }}</span>
-          <small class="hd-slot">{{ b.m.slot.label|default:"—" }}</small>
-        </td>
-        <td>{{ b.jira_id|default:"—" }}</td>
-        <td>{{ b.automation_name|default:"—" }}</td>
-        <td data-sort="{{ b.handover_initiated|date:"Y-m-d H:i" }}">{% if b.handover_initiated %}{{ b.handover_initiated|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
-        <td><span class="badge badge-{{ b.display_status }}">{{ b.display_status }}</span></td>
-        {% if b.display_status == "cancelled" %}
-        <td>{% if b.m.cancelled_by %}<span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.cancelled_by.username }}</span>{% else %}—{% endif %}</td>
-        <td class="wrap-truncate" title="{{ b.m.cancellation_reason }}">{{ b.m.cancellation_reason|default:"—" }}</td>
-        <td>
-          <button type="button" class="btn btn-danger btn-sm" disabled title="Already cancelled">
-            <i class="bi bi-x-circle"></i> Cancel meeting
-          </button>
-        </td>
-        {% else %}
-        <td>—</td><td>—</td>
-        <td style="white-space:nowrap">
-          {% if b.display_status == "scheduled" and "schedules.edit" in perms_set %}
-          <button type="button" class="btn btn-secondary btn-sm"
-                  onclick="openRescheduleModal('{{ b.m.id }}', '{{ b.m.subject|escapejs }}', '{{ b.m.tool_key|escapejs }}')">
-            <i class="bi bi-calendar-event"></i> Reschedule
-          </button>
-          {% endif %}
-          {% if b.display_status == "scheduled" and "schedules.cancel" in perms_set %}
-          <button type="button" class="btn btn-danger btn-sm"
-                  onclick="openCancelModal('{{ b.m.id }}', '{{ b.m.subject|escapejs }}')">
-            <i class="bi bi-x-circle"></i> Cancel meeting
-          </button>
-          {% endif %}
-          {% if b.display_status == "completed" and not b.m.go_live_done and "schedules.edit" in perms_set %}
-            <form method="post" action="/meetings/{{ b.m.id }}/go-live/" style="display:inline;margin:0">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-success btn-sm"
-                      onclick="return confirm('Mark this handover as moved to GO live? Follow-up reminders will stop.');">
-                <i class="bi bi-rocket-takeoff"></i> Mark GO-live
-              </button>
-            </form>
-          {% elif b.m.go_live_done %}
-            <span class="badge" style="background:#d6ead7;color:#1e6b2e">
-              <i class="bi bi-check-circle-fill"></i> GO-live
-            </span>
-          {% endif %}
-        </td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="panel" style="padding:6px 20px">
+<div class="table-scroll">
+<table class="data-table">
+<thead>
+<tr>
+<th>Username</th>
+<th>Tool</th>
+<th>Automation Type</th>
+<th>JIRA Type</th>
+<th>Customer</th>
+<th>Date</th>
+<th>Slot</th>
+<th>JIRA ID</th>
+<th>Automation Name</th>
+<th>Scrum Master</th>
+<th>Status</th>
+<th>Cancelled By</th>
+<th>Cancellation Reason</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+{% for b in bookings %}
+<tr>
+<td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.organizer.username }}</span></td>
+<td>{{ b.m.tool_key }}</td>
+<td>
+{% if b.automation_type_display and b.automation_type_display != '—' %}
+<span class="badge" style="
+{% if b.automation_type_key == 'EXECUTION' %}background:#d6ead7;color:#1e6b2e
+{% elif b.automation_type_key == 'HEALTHCHECK' %}background:#fff3cd;color:#7d5a00
+{% elif b.automation_type_key == 'BACKUP' %}background:#e2d9f3;color:#4a1d96
+{% else %}background:#ededed;color:#444{% endif %}">
+{{ b.automation_type_display }}
+</span>
+{% else %}—{% endif %}
+</td>
+<td>
+{% if b.jira_type_display and b.jira_type_display != '—' %}
+<span class="badge" style="background:#e7ebff;color:#3730a3">{{ b.jira_type_display }}</span>
+{% if b.parent_jira_id %}<div style="font-size:.72rem;color:var(--text-tertiary);margin-top:2px">parent: {{ b.parent_jira_id }}</div>{% endif %}
+{% else %}—{% endif %}
+</td>
+<td>{{ b.customer_name|default:"—" }}</td>
+<td>{{ b.m.booking_date|default:b.m.start_at|date:"Y-m-d" }}</td>
+<td>{{ b.m.slot.label|default:"—" }}</td>
+<td>{{ b.jira_id|default:"—" }}</td>
+<td>{{ b.automation_name|default:"—" }}</td>
+<td>
+{% for s in b.scrum_masters %}<span class="pill-person"><i class="bi bi-person-fill"></i> {{ s.name }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}
+</td>
+<td><span class="badge badge-{{ b.display_status }}">{{ b.display_status }}</span></td>
+{% if b.display_status == "cancelled" %}
+<td>{% if b.m.cancelled_by %}<span class="pill-person"><i class="bi bi-person-fill"></i> {{ b.m.cancelled_by.username }}</span>{% else %}—{% endif %}</td>
+<td class="wrap-truncate" title="{{ b.m.cancellation_reason }}">{{ b.m.cancellation_reason|default:"—" }}</td>
+<td>
+<button type="button" class="btn btn-danger btn-sm" disabled title="Already cancelled">
+<i class="bi bi-x-circle"></i> Cancel meeting
+</button>
+</td>
+{% else %}
+<td>—</td><td>—</td>
+<td>
+{% if b.display_status == "scheduled" and "schedules.cancel" in perms_set %}
+<button type="button" class="btn btn-danger btn-sm"
+onclick="openCancelModal('{{ b.m.id }}', '{{ b.m.subject|escapejs }}')">
+<i class="bi bi-x-circle"></i> Cancel meeting
+</button>
+{% endif %}
+</td>
+{% endif %}
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
 </div>
 {% else %}
 <div class="panel empty-state">No bookings match your filters.</div>
 {% endif %}
-
 <!-- ── No Meeting Needed table (Healthcheck / Backup) ────────────────── -->
 <div class="table-toolbar" style="margin-top:32px">
-  <h2 style="margin:0">
-    <i class="bi bi-envelope-check-fill" style="color:#f9a825;margin-right:6px"></i>
-    No Meeting Needed — Doc-Only Verifications ({{ no_meeting_runs|length }})
-  </h2>
+<h2 style="margin:0">
+<i class="bi bi-envelope-check-fill" style="color:#f9a825;margin-right:6px"></i>
+No Meeting Needed — Doc-Only Verifications ({{ no_meeting_runs|length }})
+</h2>
 </div>
 {% if no_meeting_runs %}
-<div class="panel table-scroll" style="padding:6px 20px;border-left:4px solid #f9a825">
-  <table class="data-table sortable" id="nmnTable" data-default-col="8" data-default-dir="desc">
-    <thead>
-      <tr>
-        <th>Username</th>
-        <th>Tool</th>
-        <th>Automation Type</th>
-        <th>Customer</th>
-        <th>JIRA ID</th>
-        <th>Automation Name</th>
-        <th>Overall</th>
-        <th>Remarks</th>
-        <th>Handover Initiated</th>
-        <th>Scan Date</th>
-        <th class="no-sort"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in no_meeting_runs %}
-      <tr>
-        <td data-sort="{{ r.requested_by.username }}"><span class="pill-person"><i class="bi bi-person-fill"></i> {{ r.requested_by.username }}</span></td>
-        <td>{{ r.tool.display_name }}</td>
-        <td>
-          {% if r.automation_type %}
-          <span class="badge" style="background:#fff3cd;color:#7d5a00">
-            {{ r.automation_type.display_name }}
-          </span>
-          {% else %}—{% endif %}
-        </td>
-        <td>{{ r.customer_name|default:"—" }}</td>
-        <td>{{ r.jira_id }}</td>
-        <td>{{ r.automation_name|default:"—" }}</td>
-        <td><span class="badge badge-{{ r.status }}">{{ r.status|lower }}</span></td>
-        <td>
-          {% if r.status == "PASSED" %}
-          <span style="color:#1e6b2e;font-size:.82rem;font-weight:600">
-            <i class="bi bi-check-circle-fill"></i> No meeting needed
-          </span>
-          {% elif r.status == "FAILED" %}
-          <span style="color:#9b1c1c;font-size:.82rem;font-weight:600">
-            <i class="bi bi-x-circle-fill"></i> Verification failed
-          </span>
-          {% else %}
-          <span style="color:#6b7a8d;font-size:.82rem">{{ r.status|lower }}</span>
-          {% endif %}
-        </td>
-        <td data-sort="{{ r.finished_at|date:"Y-m-d H:i" }}">{% if r.finished_at %}{{ r.finished_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
-        <td data-sort="{{ r.started_at|date:"Y-m-d H:i" }}">{{ r.started_at|date:"Y-m-d H:i" }}</td>
-        <td><a href="/validations/{{ r.id }}/report/">report</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="panel" style="padding:6px 20px;border-left:4px solid #f9a825">
+<div class="table-scroll">
+<table class="data-table">
+<thead>
+<tr>
+<th>Username</th>
+<th>Tool</th>
+<th>Automation Type</th>
+<th>Customer</th>
+<th>JIRA ID</th>
+<th>Automation Name</th>
+<th>Overall</th>
+<th>Remarks</th>
+<th>Date</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+{% for r in no_meeting_runs %}
+<tr>
+<td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ r.requested_by.username }}</span></td>
+<td>{{ r.tool.display_name }}</td>
+<td>
+{% if r.automation_type %}
+<span class="badge" style="background:#fff3cd;color:#7d5a00">
+{{ r.automation_type.display_name }}
+</span>
+{% else %}—{% endif %}
+</td>
+<td>{{ r.customer_name|default:"—" }}</td>
+<td>{{ r.jira_id }}</td>
+<td>{{ r.automation_name|default:"—" }}</td>
+<td><span class="badge badge-{{ r.status }}">{{ r.status|lower }}</span></td>
+<td>
+{% if r.status == "PASSED" %}
+<span style="color:#1e6b2e;font-size:.82rem;font-weight:600">
+<i class="bi bi-check-circle-fill"></i> No meeting needed
+</span>
+{% elif r.status == "FAILED" %}
+<span style="color:#9b1c1c;font-size:.82rem;font-weight:600">
+<i class="bi bi-x-circle-fill"></i> Verification failed
+</span>
+{% else %}
+<span style="color:#6b7a8d;font-size:.82rem">{{ r.status|lower }}</span>
+{% endif %}
+</td>
+<td>{{ r.started_at|date:"Y-m-d H:i" }}</td>
+<td><a href="/validations/{{ r.id }}/report/">report</a></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
 </div>
 {% else %}
 <div class="panel empty-state" style="border-left:4px solid #f9a825">
-  No doc-only verifications found.
+No doc-only verifications found.
 </div>
 {% endif %}
-
 <!-- ── Cancel modal ───────────────────────────────────────────────────── -->
 <div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content" style="border-radius:14px;border:none">
-      <form method="post" id="cancelForm">{% csrf_token %}
-        <div class="modal-header" style="border-bottom:1px solid var(--border)">
-          <h5 class="modal-title">
-            <i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i> Cancel handover call
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p style="margin-bottom:10px">
-            Cancelling <strong id="cancelSubjectLabel"></strong>.
-            The Teams meeting will be cancelled and attendees notified.
-          </p>
-          <div class="field-group" style="margin-bottom:0">
-            <label>Cancellation reason <span style="color:var(--red-text)">*</span></label>
-            <textarea name="reason" id="cancelReason" rows="3" required
-              placeholder="Why is this handover call being cancelled?"
-              style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);
-              border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer" style="border-top:1px solid var(--border)">
-          <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Never mind</button>
-          <button type="submit" class="btn btn-danger">
-            <i class="bi bi-x-circle"></i> Confirm cancellation
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
+<div class="modal-dialog">
+<div class="modal-content" style="border-radius:14px;border:none">
+<form method="post" id="cancelForm">{% csrf_token %}
+<div class="modal-header" style="border-bottom:1px solid var(--border)">
+<h5 class="modal-title">
+<i class="bi bi-x-circle-fill" style="color:var(--red-text)"></i> Cancel handover call
+</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 </div>
-
-<!-- ── Reschedule modal ───────────────────────────────────────────────── -->
-<div class="modal fade" id="rescheduleModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content" style="border-radius:14px;border:none">
-      <form method="post" id="rescheduleForm">{% csrf_token %}
-        <div class="modal-header" style="border-bottom:1px solid var(--border)">
-          <h5 class="modal-title">
-            <i class="bi bi-calendar-event" style="color:var(--indigo)"></i> Reschedule handover call
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <p style="margin-bottom:12px">
-            Moving <strong id="reschedSubjectLabel"></strong> to a new slot.
-            The current Teams meeting will be cancelled and a new invite sent
-            to the same attendees.
-          </p>
-          <div class="field-group" style="margin-bottom:12px">
-            <label>New date <span style="color:var(--red-text)">*</span></label>
-            <input type="date" id="reschedDate" name="date" required
-              style="width:100%;padding:.55rem .8rem;border:1.5px solid var(--border-strong);
-              border-radius:var(--radius-md);font:inherit;font-size:.87rem">
-          </div>
-          <div class="field-group" style="margin-bottom:12px">
-            <label>New slot <span style="color:var(--red-text)">*</span></label>
-            <select id="reschedSlot" name="slot_id" required
-              style="width:100%;padding:.55rem .8rem;border:1.5px solid var(--border-strong);
-              border-radius:var(--radius-md);font:inherit;font-size:.87rem">
-              <option value="">Pick a date first…</option>
-            </select>
-            <small id="reschedSlotHint" style="color:#6b7a8d;font-size:.78rem"></small>
-          </div>
-          <div class="field-group" style="margin-bottom:0">
-            <label>Reason (optional)</label>
-            <textarea name="reason" id="reschedReason" rows="2"
-              placeholder="Why is this handover call being moved?"
-              style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);
-              border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer" style="border-top:1px solid var(--border)">
-          <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Never mind</button>
-          <button type="submit" class="btn btn-primary" id="reschedSubmit" disabled>
-            <i class="bi bi-calendar-check"></i> Confirm reschedule
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
+<div class="modal-body">
+<p style="margin-bottom:10px">
+Cancelling <strong id="cancelSubjectLabel"></strong>.
+The Teams meeting will be cancelled and attendees notified.
+</p>
+<div class="field-group" style="margin-bottom:0">
+<label>Cancellation reason <span style="color:var(--red-text)">*</span></label>
+<textarea name="reason" id="cancelReason" rows="3" required
+placeholder="Why is this handover call being cancelled?"
+style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);
+border-radius:var(--radius-md);font:inherit;font-size:.87rem"></textarea>
+<div id="cancelReasonErr" style="color:var(--red-text);font-size:.8rem;margin-top:6px"></div>
 </div>
-
+</div>
+<div class="modal-footer" style="border-top:1px solid var(--border)">
+<button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Never mind</button>
+<button type="submit" class="btn btn-danger">
+<i class="bi bi-x-circle"></i> Confirm cancellation
+</button>
+</div>
+</form>
+</div>
+</div>
+</div>
 <script>
+// Client-side mirror of apps/scheduler/reason_validation.py so junk reasons
+// (NA / None / test / repeated chars / punctuation-only) are caught before
+// submit. The server re-validates regardless.
+const _REASON_JUNK = new Set(["na","n/a","n.a","none","nil","nan","null","nn",
+  "no","no reason","reason","cancel","cancelled","cancellation","test","testing",
+  "abc","asdf","asdfgh","qwerty","xxx","xx","aaa","-",".","..","...","dummy",
+  "sample","tbd","todo","n a","na na","ok","okay","done"]);
+function _reasonError(raw) {
+  const reason = (raw || "").trim();
+  if (!reason) return "A cancellation reason is required.";
+  const norm  = reason.replace(/\s+/g, " ").toLowerCase();
+  const token = norm.replace(/^[ .,\-_/\\|!?*#]+|[ .,\-_/\\|!?*#]+$/g, "");
+  if (_REASON_JUNK.has(token) || _REASON_JUNK.has(norm))
+    return "Please provide a specific, meaningful reason (values like 'NA', 'None', 'test' are not accepted).";
+  if (/^[\W_]+$/.test(reason)) return "The reason cannot be only punctuation or symbols.";
+  if (/^(.)\1*$/.test(token))  return "Please provide a real reason, not repeated characters.";
+  if (!/[A-Za-z]/.test(reason)) return "The reason must contain words, not just numbers or symbols.";
+  if (token.length < 8) return "Please provide a more detailed reason (at least 8 characters).";
+  return "";
+}
 function openCancelModal(meetingId, subject) {
   document.getElementById('cancelForm').action = '/meetings/' + meetingId + '/cancel/';
   document.getElementById('cancelSubjectLabel').textContent = subject;
   document.getElementById('cancelReason').value = '';
+  const e = document.getElementById('cancelReasonErr'); if (e) e.textContent = '';
   new bootstrap.Modal(document.getElementById('cancelModal')).show();
 }
-
-// ── Reschedule: reuses the existing cancel + create Power Automate flows ──
-var _reschedTool = "";
-function openRescheduleModal(meetingId, subject, toolKey) {
-  _reschedTool = toolKey || "";
-  var form = document.getElementById('rescheduleForm');
-  form.action = '/meetings/' + meetingId + '/reschedule/';
-  document.getElementById('reschedSubjectLabel').textContent = subject;
-  document.getElementById('reschedReason').value = '';
-  var dateEl = document.getElementById('reschedDate');
-  dateEl.value = '';
-  dateEl.min = new Date().toISOString().slice(0, 10);
-  var slotEl = document.getElementById('reschedSlot');
-  slotEl.innerHTML = '<option value="">Pick a date first…</option>';
-  document.getElementById('reschedSlotHint').textContent = '';
-  document.getElementById('reschedSubmit').disabled = true;
-  new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
-}
-
-document.addEventListener('DOMContentLoaded', function () {
-  var dateEl = document.getElementById('reschedDate');
-  if (!dateEl) { return; }
-  dateEl.addEventListener('change', function () {
-    var slotEl = document.getElementById('reschedSlot');
-    var hint = document.getElementById('reschedSlotHint');
-    var submit = document.getElementById('reschedSubmit');
-    slotEl.innerHTML = '<option value="">Loading…</option>';
-    submit.disabled = true;
-    hint.textContent = '';
-    if (!this.value) {
-      slotEl.innerHTML = '<option value="">Pick a date first…</option>';
-      return;
-    }
-    fetch('/api/v1/calendar/slots?tool=' + encodeURIComponent(_reschedTool) +
-          '&date=' + encodeURIComponent(this.value))
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var slots = (data && data.slots) || [];
-        if (!slots.length) {
-          slotEl.innerHTML = '<option value="">No free slots on this date</option>';
-          hint.textContent = 'That date is fully booked or unavailable for this tool. Try another date.';
-          submit.disabled = true;
-          return;
-        }
-        slotEl.innerHTML = '<option value="">Select a slot…</option>';
-        slots.forEach(function (s) {
-          var o = document.createElement('option');
-          o.value = s.slot_id;
-          o.textContent = s.label;
-          slotEl.appendChild(o);
-        });
-      })
-      .catch(function () {
-        slotEl.innerHTML = '<option value="">Could not load slots</option>';
-        hint.textContent = 'Something went wrong loading slots. Please retry.';
-      });
+(function () {
+  const form = document.getElementById('cancelForm');
+  if (!form) return;
+  form.addEventListener('submit', function (ev) {
+    const err = _reasonError(document.getElementById('cancelReason').value);
+    const box = document.getElementById('cancelReasonErr');
+    if (err) { ev.preventDefault(); if (box) box.textContent = err; }
   });
-
-  document.getElementById('reschedSlot').addEventListener('change', function () {
-    document.getElementById('reschedSubmit').disabled = !this.value;
-  });
-});
-
-// ── Generic client-side column sorting ─────────────────────────────────
-function _cellSortVal(row, idx) {
-  var td = row.children[idx];
-  if (!td) return '';
-  var v = td.getAttribute('data-sort');
-  if (v !== null) return v.trim();
-  return (td.textContent || '').trim();
-}
-function _sortTable(table, idx, dir) {
-  var tbody = table.querySelector('tbody');
-  if (!tbody) return;
-  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-  rows.sort(function (a, b) {
-    var x = _cellSortVal(a, idx), y = _cellSortVal(b, idx);
-    var ex = (x === '' || x === '—'), ey = (y === '' || y === '—');
-    if (ex && ey) return 0;
-    if (ex) return 1;            // blanks always sink to the bottom
-    if (ey) return -1;
-    var nx = parseFloat(x), ny = parseFloat(y);
-    var cmp;
-    if (!isNaN(nx) && !isNaN(ny) && /^[-\d.]+$/.test(x) && /^[-\d.]+$/.test(y)) {
-      cmp = nx - ny;
-    } else {
-      var lx = x.toLowerCase(), ly = y.toLowerCase();
-      cmp = lx < ly ? -1 : (lx > ly ? 1 : 0);
-    }
-    return dir === 'asc' ? cmp : -cmp;
-  });
-  rows.forEach(function (r) { tbody.appendChild(r); });
-}
-function _initSortable(table) {
-  var ths = table.querySelectorAll('thead th');
-  ths.forEach(function (th, idx) {
-    if (th.classList.contains('no-sort')) return;
-    th.classList.add('sortable-th');
-    var arrow = document.createElement('span');
-    arrow.className = 'sort-arrow';
-    th.appendChild(arrow);
-    th.addEventListener('click', function () {
-      var dir = th.getAttribute('data-dir') === 'asc' ? 'desc' : 'asc';
-      ths.forEach(function (o) {
-        o.removeAttribute('data-dir');
-        var a = o.querySelector('.sort-arrow');
-        if (a) a.textContent = '';
-      });
-      th.setAttribute('data-dir', dir);
-      arrow.textContent = dir === 'asc' ? ' \u25B2' : ' \u25BC';
-      _sortTable(table, idx, dir);
-    });
-  });
-  // Apply the default sort (latest Handover Initiated first)
-  var dc = parseInt(table.getAttribute('data-default-col'), 10);
-  var dd = table.getAttribute('data-default-dir') || 'desc';
-  if (!isNaN(dc)) {
-    var th = ths[dc];
-    if (th && !th.classList.contains('no-sort')) {
-      th.setAttribute('data-dir', dd);
-      var a = th.querySelector('.sort-arrow');
-      if (a) a.textContent = dd === 'asc' ? ' \u25B2' : ' \u25BC';
-      _sortTable(table, dc, dd);
-    }
-  }
-}
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('table.sortable').forEach(_initSortable);
-});
+})();
 </script>
 {% endblock %}

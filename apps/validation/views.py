@@ -3,11 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, FileResponse, Http404
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.decorators.http import require_POST
-from apps.adminconfig.models import ToolConfig, AutomationType
+from apps.adminconfig.models import ToolConfig, AutomationType, JiraType
 from apps.audit.log import log_action
 from apps.rbac.decorators import require_permission
 from .models import ValidationRun
 from .services import start_run, cancel_run, ValidationError
+
 
 @require_permission("verification.view")
 def verify_page(request):
@@ -19,26 +20,26 @@ def verify_page(request):
         result_run = (
             ValidationRun.objects
             .filter(pk=request.GET["run"])
-            .select_related("automation_type")
+            .select_related("automation_type", "jira_type")
             .prefetch_related("results")
             .first()
         )
-
     history = (
         ValidationRun.objects
         .filter(requested_by=request.user)
-        .select_related("tool", "automation_type")
+        .select_related("tool", "automation_type", "jira_type")
         .prefetch_related("results")
         .order_by("-started_at")[:20]
     )
-
     return render(request, "verify.html", {
         "nav": "verify",
         "tools": ToolConfig.objects.filter(is_active=True),
         "automation_types": AutomationType.objects.filter(is_active=True),
+        "jira_types": JiraType.objects.filter(is_active=True),
         "result_run": result_run,
         "history": history,
     })
+
 
 @require_permission("verification.execute")
 @require_POST
@@ -52,16 +53,19 @@ def start(request):
             data.get("repo_url", ""),
             data.get("customer_name", ""),
             data.get("automation_name", ""),
-            data.get("automation_type_key", ""),   # ← new field
+            data.get("automation_type_key", ""),
+            jira_type_key=data.get("jira_type_key", ""),
+            enhancement_jira_id=data.get("enhancement_jira_id", ""),
+            eridoc_path=data.get("eridoc_path", ""),
         )
     except ValidationError as e:
         return JsonResponse({"error": str(e)}, status=400)
-
     log_action(request.user, "validation.started", "verification",
                f"{run.tool.key} / {run.jira_id} "
                f"(customer: {run.customer_name}, "
                f"type: {run.automation_type.key if run.automation_type else 'N/A'})")
     return JsonResponse({"run_id": str(run.id)}, status=202)
+
 
 @require_permission("verification.execute")
 @require_POST
@@ -72,6 +76,7 @@ def cancel(request, run_id):
         log_action(request.user, "validation.terminated", "verification",
                    f"{run.tool.key} / {run.jira_id}: {msg}")
     return JsonResponse({"ok": ok, "message": msg}, status=202 if ok else 409)
+
 
 @login_required
 def status_json(request, run_id):
@@ -96,6 +101,7 @@ def status_json(request, run_id):
         "next": f"/verify/?run={run.id}",
     })
 
+
 @require_permission("reports.view")
 def report_page(request, run_id):
     run = get_object_or_404(
@@ -104,6 +110,7 @@ def report_page(request, run_id):
     ctx = build_report_context(run)
     ctx["nav"] = "verify"
     return render(request, "report.html", ctx)
+
 
 @require_permission("reports.download")
 def report_pdf(request, run_id):
@@ -119,7 +126,7 @@ def report_pdf(request, run_id):
     return FileResponse(run.pdf_file.open("rb"), as_attachment=True,
                         filename=f"validation-{run.jira_id}.pdf")
 
+
 @login_required
 def legacy_redirects(request):
     return redirect("/verify/")
-

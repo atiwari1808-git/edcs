@@ -2,6 +2,7 @@
 import io
 from datetime import date
 from django.db.models import Q
+from django.contrib.auth import get_user_model
 from .models import Meeting
 
 ACTIVE = ["PENDING", "REQUESTED", "CONFIRMED"]
@@ -20,6 +21,21 @@ def _display_status(m: Meeting, today=None) -> str:
     return "completed" if d < today else "scheduled"
 
 
+def _resolve_scrum_master_names(emails):
+    """Map a set of scrum-master emails to a display name from the Users DB.
+    Falls back to the raw email when no matching user exists."""
+    emails = {e.lower() for e in emails if e}
+    if not emails:
+        return {}
+    User = get_user_model()
+    name_map = {}
+    for u in User.objects.filter(email__in=emails):
+        full = (u.get_full_name() or "").strip()
+        name_map[u.email.lower()] = full or u.username
+    # anything not found falls back to the email itself
+    return {e: name_map.get(e, e) for e in emails}
+
+
 # ---------------------------------------------------------------------------
 # Querysets
 # ---------------------------------------------------------------------------
@@ -27,34 +43,58 @@ def all_bookings():
     return (
         Meeting.objects
         .select_related("organizer", "slot", "validation_run",
-                        "validation_run__automation_type")
+                        "validation_run__automation_type",
+                        "validation_run__jira_type")
         .prefetch_related("attendees")
         .order_by("-start_at")
     )
 
 
-def filtered_bookings(q="", tool="", status="", date_from="", date_to=""):
+def filtered_bookings(q="", tool="", status="", date_from="", date_to="",
+                      jira_type="", sm_scope_email=""):
     rows = all_bookings()
     if q:
         rows = rows.filter(
             Q(organizer__username__icontains=q) | Q(tool_key__icontains=q) |
             Q(subject__icontains=q) | Q(validation_run__jira_id__icontains=q) |
+            Q(validation_run__parent_jira_id__icontains=q) |
             Q(attendees__email__icontains=q)
         ).distinct()
     if tool:
         rows = rows.filter(tool_key=tool)
+    if jira_type:
+        rows = rows.filter(validation_run__jira_type__key=jira_type)
+    if sm_scope_email:
+        # Scrum-master scope: only meetings where this email is a Scrum Master
+        rows = rows.filter(attendees__email__iexact=sm_scope_email,
+                           attendees__type="SCRUM_MASTER").distinct()
     if date_from:
         rows = rows.filter(booking_date__gte=date_from)
     if date_to:
         rows = rows.filter(booking_date__lte=date_to)
+
+    rows = list(rows)
+
+    # Bulk-resolve all scrum-master emails to names in a single query.
+    all_sm_emails = set()
+    for m in rows:
+        for a in m.attendees.all():
+            if a.type == "SCRUM_MASTER":
+                all_sm_emails.add(a.email.lower())
+    sm_names = _resolve_scrum_master_names(all_sm_emails)
+
     out = []
     for m in rows:
         disp = _display_status(m)
         if status and disp != status:
             continue
         vr = m.validation_run
-        # Automation Type display name (e.g. "Execution")
         at = vr.automation_type if vr else None
+        jt = vr.jira_type if vr else None
+        scrum_masters = [
+            {"email": a.email, "name": sm_names.get(a.email.lower(), a.email)}
+            for a in m.attendees.all() if a.type == "SCRUM_MASTER"
+        ]
         out.append({
             "m": m,
             "display_status": disp,
@@ -64,11 +104,13 @@ def filtered_bookings(q="", tool="", status="", date_from="", date_to=""):
             "automation_type_display": at.display_name if at else "—",
             "automation_type_key": at.key if at else "",
             "requires_scheduling": at.requires_scheduling if at else True,
-            # ↓ NEW: audit dates surfaced on the dashboard
-            #   doc_verified      = when the verification completed (finished_at)
-            #   handover_initiated = when the meeting was booked  (created_at)
-            "doc_verified": (vr.finished_at if vr else None),
-            "handover_initiated": m.created_at,
+            # JIRA Type / enhancement (Req 2)
+            "jira_type_display": jt.display_name if jt else "—",
+            "jira_type_key": jt.key if jt else "",
+            "parent_jira_id": vr.parent_jira_id if vr else "",
+            "enhancement_jira_id": vr.enhancement_jira_id if vr else "",
+            # Scrum masters (Req 5)
+            "scrum_masters": scrum_masters,
         })
     return out
 
@@ -90,7 +132,7 @@ def booking_stats():
 
 
 def no_meeting_stats():
-    """Count of doc-only (Healthcheck / Backup) PASSED runs — dashboard stat card."""
+    """Count of doc-only (Healthcheck / Backup) PASSED runs — for dashboard stat card."""
     from apps.validation.models import ValidationRun
     return ValidationRun.objects.filter(
         automation_type__requires_scheduling=False,
@@ -101,17 +143,16 @@ def no_meeting_stats():
 # ---------------------------------------------------------------------------
 # Excel export
 # ---------------------------------------------------------------------------
-# Colour palette (openpyxl ARGB — no leading #)
 _CLR = {
-    "header_fill":   "FF1C3C5A",   # dark navy  (header background)
-    "header_font":   "FFFFFFFF",   # white      (header text)
-    "subheader":     "FFD9E8F5",   # light blue (sheet-2 section header)
-    "row_even":      "FFF5F9FF",   # very light blue
-    "row_odd":       "FFFFFFFF",   # white
-    "type_exec":     "FFD6EAD7",   # soft green  — Execution
-    "type_hc":       "FFFFF3CD",   # soft yellow — Healthcheck
-    "type_backup":   "FFE2D9F3",   # soft purple — Backup
-    "type_other":    "FFEDEDED",   # light grey  — anything else
+    "header_fill":   "FF1C3C5A",
+    "header_font":   "FFFFFFFF",
+    "subheader":     "FFD9E8F5",
+    "row_even":      "FFF5F9FF",
+    "row_odd":       "FFFFFFFF",
+    "type_exec":     "FFD6EAD7",
+    "type_hc":       "FFFFF3CD",
+    "type_backup":   "FFE2D9F3",
+    "type_other":    "FFEDEDED",
     "pass_green":    "FFD6EAD7",
     "fail_red":      "FFFFD7D7",
 }
@@ -135,20 +176,13 @@ def _status_colour(status: str) -> str:
     return _CLR["type_other"]
 
 
-def _fmt_dt(value, fmt="%Y-%m-%d %H:%M"):
-    return value.strftime(fmt) if value else ""
-
-
 def bookings_workbook(rows) -> io.BytesIO:
     """
-    Build a single-sheet, styled Excel workbook that COMBINES both dashboard
-    tables into one consistent column layout:
-
-        • Handover Bookings          (meeting-required rows passed in `rows`)
-        • No Meeting Needed          (doc-only Healthcheck / Backup runs)
-
-    Every column from both tables is preserved. Columns that don't apply to a
-    given record type are left blank so the sheet stays perfectly aligned.
+    Build a styled two-sheet Excel workbook.
+    Sheet 1 - "Handover Bookings"  : all meetings (Execution type)
+    Sheet 2 - "No Meeting Needed"  : Healthcheck / Backup runs
+    Both sheets carry JIRA Type / Parent JIRA / Enhancement JIRA and the
+    Scrum Masters column.
     """
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -161,8 +195,14 @@ def bookings_workbook(rows) -> io.BytesIO:
         return PatternFill("solid", fgColor=hex_argb)
 
     def _border():
-        sd = Side(style="thin", color="FFD0D0D0")
-        return Border(left=sd, right=sd, top=sd, bottom=sd)
+        s = Side(style="thin", color="FFD0D0D0")
+        return Border(left=s, right=s, top=s, bottom=s)
+
+    def _header_font():
+        return Font(bold=True, color=_CLR["header_font"], size=10)
+
+    def _data_font(bold=False):
+        return Font(bold=bold, size=10)
 
     def _center():
         return Alignment(horizontal="center", vertical="center", wrap_text=True)
@@ -170,138 +210,140 @@ def bookings_workbook(rows) -> io.BytesIO:
     def _left():
         return Alignment(horizontal="left", vertical="center", wrap_text=True)
 
+    def _style_header_row(ws, row_idx=1):
+        for cell in ws[row_idx]:
+            cell.fill      = _fill(_CLR["header_fill"])
+            cell.font      = _header_font()
+            cell.alignment = _center()
+            cell.border    = _border()
+
     def _auto_width(ws, min_w=12, max_w=42):
         for col in ws.columns:
             letter = get_column_letter(col[0].column)
-            width = max(min_w, min(max_w,
-                        max(len(str(c.value or "")) for c in col) + 3))
+            width  = max(min_w, min(max_w,
+                         max(len(str(c.value or "")) for c in col) + 3))
             ws.column_dimensions[letter].width = width
 
-    # ------------------------------------------------------------------ #
-    # Single combined sheet
-    # ------------------------------------------------------------------ #
-    ws = wb.active
-    ws.title = "Handover Records"
-    ws.freeze_panes = "A2"
-    ws.row_dimensions[1].height = 22
-
-    HEADERS = [
-        "Record Type", "Username", "Tool", "Automation Type", "Customer",
-        "JIRA ID", "Automation Name", "Handover Date", "Slot",
-        "Developers", "Scrum Masters", "CC",
-        "Status", "Remarks", "Cancelled By",
-        "Handover Initiated", "Scan / Verified Date",
+    # ================================================================== #
+    # SHEET 1 - Handover Bookings
+    # ================================================================== #
+    ws1 = wb.active
+    ws1.title = "Handover Bookings"
+    ws1.freeze_panes = "A2"
+    ws1.row_dimensions[1].height = 22
+    HEADERS_S1 = [
+        "Username", "Tool", "Automation Type", "JIRA Type", "Customer",
+        "Date", "Slot", "JIRA ID", "Parent JIRA", "Enhancement JIRA",
+        "Automation Name", "Developers", "Scrum Masters", "CC",
+        "Status", "Created",
     ]
-    ws.append(HEADERS)
-    for cell in ws[1]:
-        cell.fill = _fill(_CLR["header_fill"])
-        cell.font = Font(bold=True, color=_CLR["header_font"], size=10)
-        cell.alignment = _center()
-        cell.border = _border()
-
-    # Column groups (1-based) for alignment / colouring
-    CENTER_COLS = (1, 3, 4, 8, 9, 13, 16, 17)
-    TYPE_COL = 4
-    STATUS_COL = 13
-
-    row_idx = 1  # header written
-
-    # ---- Section A: Handover Bookings -------------------------------- #
-    for r in rows:
-        m = r["m"]
-        att = list(m.attendees.all())
-        pick = lambda k: ", ".join(a.email for a in att if a.type == k)
-        at_key = r.get("automation_type_key", "")
-        at_disp = r.get("automation_type_display", "—")
-        disp_st = r["display_status"]
-        vr = m.validation_run
-        row_idx += 1
-        ws.append([
-            "Handover Booking",
+    ws1.append(HEADERS_S1)
+    _style_header_row(ws1)
+    AT_COL_1, STATUS_COL_1 = 3, 15
+    CENTER_1 = {1, 2, 3, 4, 6, 7, 9, 10, 15, 16}
+    for idx, r in enumerate(rows, start=2):
+        m        = r["m"]
+        att      = list(m.attendees.all())
+        pick     = lambda k: ", ".join(a.email for a in att if a.type == k)
+        sm_names = ", ".join(s["name"] for s in r.get("scrum_masters", [])) \
+            or pick("SCRUM_MASTER")
+        at_key   = r.get("automation_type_key", "")
+        at_disp  = r.get("automation_type_display", "—")
+        disp_st  = r["display_status"]
+        ws1.append([
             m.organizer.username,
             m.tool_key,
             at_disp,
-            vr.customer_name if vr else "",
-            r["jira_id"],
-            r["automation_name"],
+            r.get("jira_type_display", "—"),
+            m.validation_run.customer_name if m.validation_run else "",
             str(m.booking_date or m.start_at.date()),
             m.slot.label if m.slot else "",
+            r["jira_id"],
+            r.get("parent_jira_id", ""),
+            r.get("enhancement_jira_id", ""),
+            r["automation_name"],
             pick("DEVELOPER"),
-            pick("SCRUM_MASTER"),
+            sm_names,
             pick("CC"),
             disp_st,
-            m.cancellation_reason or "",
-            m.cancelled_by.username if m.cancelled_by else "",
-            _fmt_dt(r.get("handover_initiated") or m.created_at),
-            _fmt_dt(vr.finished_at if vr else None),
+            m.created_at.strftime("%Y-%m-%d %H:%M"),
         ])
-        row_fill = _fill(_CLR["row_even"] if row_idx % 2 == 0 else _CLR["row_odd"])
-        for col_idx, cell in enumerate(ws[row_idx], start=1):
-            cell.border = _border()
-            cell.font = Font(size=10)
-            cell.alignment = _center() if col_idx in CENTER_COLS else _left()
-            if col_idx == TYPE_COL:
+        row_fill = _fill(_CLR["row_even"] if idx % 2 == 0 else _CLR["row_odd"])
+        for col_idx, cell in enumerate(ws1[idx], start=1):
+            cell.border    = _border()
+            cell.alignment = _center() if col_idx in CENTER_1 else _left()
+            cell.font      = _data_font()
+            if col_idx == AT_COL_1:
                 cell.fill = _fill(_type_colour(at_key))
-            elif col_idx == STATUS_COL:
+            elif col_idx == STATUS_COL_1:
                 cell.fill = _fill(_status_colour(disp_st))
             else:
                 cell.fill = row_fill
+    _auto_width(ws1)
 
-    # ---- Section B: No Meeting Needed (doc-only runs) ---------------- #
+    # ================================================================== #
+    # SHEET 2 - No Meeting Needed
+    # ================================================================== #
+    ws2 = wb.create_sheet("No Meeting Needed")
+    ws2.freeze_panes = "A2"
+    ws2.row_dimensions[1].height = 22
+    HEADERS_S2 = [
+        "Username", "Tool", "Automation Type", "JIRA Type", "Customer",
+        "JIRA ID", "Parent JIRA", "Enhancement JIRA", "Automation Name",
+        "Status", "Remarks", "Scan Date",
+    ]
+    ws2.append(HEADERS_S2)
+    _style_header_row(ws2)
+    AT_COL_2, STATUS_COL_2 = 3, 10
+    CENTER_2 = {1, 2, 3, 4, 6, 7, 8, 10, 12}
+    no_meeting_runs = (
+        ValidationRun.objects
+        .filter(automation_type__requires_scheduling=False)
+        .select_related("requested_by", "tool", "automation_type", "jira_type")
+        .order_by("-started_at")
+    )
     STATUS_REMARKS = {
-        "PASSED": "No meeting needed — verification passed",
-        "FAILED": "Verification failed — no meeting required",
+        "PASSED": "No meeting needed - verification passed",
+        "FAILED": "Verification failed - no meeting required",
         "CANCELLED": "Scan cancelled",
         "RUNNING": "Scan in progress",
         "PENDING": "Scan pending",
         "ERROR": "Scan error",
     }
-    no_meeting_runs = (
-        ValidationRun.objects
-        .filter(automation_type__requires_scheduling=False)
-        .select_related("requested_by", "tool", "automation_type")
-        .order_by("-started_at")
-    )
-    for vr in no_meeting_runs:
-        at = vr.automation_type
-        at_key = at.key if at else ""
+    for idx, vr in enumerate(no_meeting_runs, start=2):
+        at      = vr.automation_type
+        at_key  = at.key if at else ""
         at_disp = at.display_name if at else "—"
-        remark = STATUS_REMARKS.get(vr.status, vr.status)
-        row_idx += 1
-        ws.append([
-            "No Meeting Needed",
+        jt      = vr.jira_type
+        remark  = STATUS_REMARKS.get(vr.status, vr.status)
+        ws2.append([
             vr.requested_by.username if vr.requested_by else "",
             vr.tool.key if vr.tool else "",
             at_disp,
+            jt.display_name if jt else "—",
             getattr(vr, "customer_name", ""),
             vr.jira_id,
+            getattr(vr, "parent_jira_id", ""),
+            getattr(vr, "enhancement_jira_id", ""),
             getattr(vr, "automation_name", ""),
-            "",                       # Handover Date — N/A
-            "",                       # Slot — N/A
-            "",                       # Developers — N/A
-            "",                       # Scrum Masters — N/A
-            "",                       # CC — N/A
             vr.status,
             remark,
-            "",                       # Cancelled By — N/A
-            _fmt_dt(vr.started_at),   # Handover Initiated (run started)
-            _fmt_dt(vr.finished_at),  # Scan / Verified date
+            vr.started_at.strftime("%Y-%m-%d %H:%M") if vr.started_at else "",
         ])
-        row_fill = _fill(_CLR["row_even"] if row_idx % 2 == 0 else _CLR["row_odd"])
-        for col_idx, cell in enumerate(ws[row_idx], start=1):
-            cell.border = _border()
-            cell.font = Font(size=10)
-            cell.alignment = _center() if col_idx in CENTER_COLS else _left()
-            if col_idx == TYPE_COL:
+        row_fill = _fill(_CLR["row_even"] if idx % 2 == 0 else _CLR["row_odd"])
+        for col_idx, cell in enumerate(ws2[idx], start=1):
+            cell.border    = _border()
+            cell.font      = _data_font()
+            cell.alignment = _center() if col_idx in CENTER_2 else _left()
+            if col_idx == AT_COL_2:
                 cell.fill = _fill(_type_colour(at_key))
-            elif col_idx == STATUS_COL:
+            elif col_idx == STATUS_COL_2:
                 cell.fill = _fill(
                     _CLR["pass_green"] if vr.status == "PASSED" else _CLR["fail_red"]
                 )
             else:
                 cell.fill = row_fill
-
-    _auto_width(ws)
+    _auto_width(ws2)
 
     buf = io.BytesIO()
     wb.save(buf)

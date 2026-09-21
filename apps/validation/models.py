@@ -22,6 +22,29 @@ class ValidationRun(models.Model):
         help_text="Controls post-scan behaviour and who is notified.",
     )
     jira_id = models.CharField(max_length=32, db_index=True)
+
+    # ── JIRA Type (Story / Enhancement) ───────────────────────────────────
+    jira_type = models.ForeignKey(
+        "adminconfig.JiraType",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="validation_runs",
+        help_text="Story or Enhancement (configurable in admin).",
+    )
+    # For an Enhancement run, jira_id holds the enhancement id (the independent
+    # unit) and parent_jira_id holds the parent story. For a Story both are
+    # left blank. enhancement_jira_id mirrors jira_id for enhancement runs so
+    # reports/exports can show it explicitly.
+    parent_jira_id = models.CharField(max_length=32, blank=True, default="",
+                                      db_index=True)
+    enhancement_jira_id = models.CharField(max_length=32, blank=True, default="")
+
+    # ── ERIDOC folder path (optional / required per ToolConfig) ────────────
+    eridoc_path = models.CharField(
+        max_length=512, blank=True, default="",
+        help_text="Explicit ERIDOC folder path/link. When blank the scanner "
+                  "falls back to the JIRA-based lookup.")
+
     repo_url = models.URLField(max_length=512, blank=True, default="")
     status = models.CharField(max_length=10, choices=Status.choices,
                               default=Status.PENDING)
