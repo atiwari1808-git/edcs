@@ -1,63 +1,43 @@
 {% extends "base.html" %}
-{% block title %}Sign in · Handover Scheduler{% endblock %}
+{% block title %}Sign in — Handover Scheduler{% endblock %}
 {% block body_class %}auth-body{% endblock %}
 {% block shell %}
 {% load static %}
 {% if messages %}<div class="flash-stack">{% for m in messages %}<div class="alert alert-{{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
 <div class="auth-card text-center">
   <div class="brand-row justify-content-center">
-    <img src="{% static 'img/logo.png' %}" alt="Ericsson" class="navbar-logo" style="width: 25px; mix-blend-mode: multiply;">
+    <img src="{% static 'img/logo.png' %}" alt="Ericsson" class="navbar-logo" style="width:26px">
     <h2 style="margin:0">Handover Scheduler</h2>
   </div>
   <p class="auth-sub">Verify documents, then schedule your handover call.</p>
-
   {% if form.errors %}
   <div class="alert alert-danger py-2 text-start" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-1"></i> Invalid username or password, or account not yet activated.
   </div>
   {% endif %}
-
   <form method="post" class="text-start">{% csrf_token %}
-    <div class="mb-3">
-      <label class="form-label fw-semibold">Username</label>
+    <div class="field-group">
+      <label>Username</label>
       <div class="input-group">
-        <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px">
-          <i class="bi bi-person text-secondary"></i>
-        </span>
-        <input type="text" name="username" class="form-control border-start-0" placeholder="Enter username" style="border-radius:0 10px 10px 0" required autofocus>
+        <span class="input-group-text bg-light border-end-0" style="border-radius:11px 0 0 11px"><i class="bi bi-person text-secondary"></i></span>
+        <input type="text" name="username" class="form-control border-start-0" placeholder="Enter username" style="border-radius:0 11px 11px 0" required autofocus>
       </div>
     </div>
-    <div class="mb-4">
-      <label class="form-label fw-semibold">Password</label>
+    <div class="field-group">
+      <label>Password</label>
       <div class="input-group">
-        <span class="input-group-text bg-light border-end-0" style="border-radius:10px 0 0 10px">
-          <i class="bi bi-lock text-secondary"></i>
-        </span>
-        <input type="password" name="password" id="pwdField" class="form-control border-start-0" placeholder="Enter password" style="border-radius:0 10px 10px 0" required>
-        <button type="button" class="btn btn-light border ms-1" style="border-radius:8px" onclick="togglePwd()">
-          <i class="bi bi-eye" id="eyeIcon"></i>
-        </button>
+        <span class="input-group-text bg-light border-end-0" style="border-radius:11px 0 0 11px"><i class="bi bi-lock text-secondary"></i></span>
+        <input type="password" name="password" id="pwdField" class="form-control border-start-0" placeholder="Enter password" style="border-radius:0 11px 11px 0" required>
+        <button type="button" class="btn btn-light border ms-1" style="border-radius:9px" onclick="togglePwd()"><i class="bi bi-eye" id="eyeIcon"></i></button>
       </div>
     </div>
     <div class="d-grid">
-      <button type="submit" class="btn btn-primary btn-block">
-        <i class="bi bi-box-arrow-in-right me-1"></i> Sign in
-      </button>
+      <button type="submit" class="btn btn-primary btn-block"><i class="bi bi-box-arrow-in-right me-1"></i> Sign in</button>
     </div>
   </form>
-  <hr class="my-3" style="border-color:#e2e8f0;">
-  <p class="mb-1" style="font-size:0.85rem;color:#64748b">New to Handover Scheduler?</p>
-  <a href="/register/" class="btn btn-secondary btn-block btn-sm">
-    <i class="bi bi-person-plus me-1"></i> Create your account
-  </a>
+  <hr class="my-3" style="border-color:var(--border-strong)">
+  <p class="mb-1" style="font-size:.85rem;color:var(--text-secondary)">New to Handover Scheduler?</p>
+  <a href="/register/" class="btn btn-secondary btn-block btn-sm"><i class="bi bi-person-plus me-1"></i> Create your account</a>
 </div>
-
-<script>
-function togglePwd() {
-  const f = document.getElementById('pwdField');
-  const i = document.getElementById('eyeIcon');
-  if (f.type === 'password') { f.type = 'text'; i.className = 'bi bi-eye-slash'; }
-  else { f.type = 'password'; i.className = 'bi bi-eye'; }
-}
-</script>
+<script>function togglePwd(){const f=document.getElementById('pwdField'),i=document.getElementById('eyeIcon');if(f.type==='password'){f.type='text';i.className='bi bi-eye-slash';}else{f.type='password';i.className='bi bi-eye';}}</script>
 {% endblock %}

@@ -1,207 +1,371 @@
-/* Handover Scheduler — tokens copied exactly from the PAMS Django templates */
-:root {
-  --indigo:#4f46e5; --indigo-dark:#3730a3; --brand-blue:#012970;
-  --blue:#3b82f6;   --blue-dark:#2563eb;   --blue-bg:#dbeafe;   --blue-text:#1d4ed8;
-  --green:#10b981;  --green-dark:#059669;  --green-bg:#dcfce7;  --green-text:#059669;
-  --amber:#f59e0b;  --amber-dark:#d97706;  --amber-bg:#fef3c7;  --amber-text:#b45309;
-  --purple:#8b5cf6; --purple-dark:#7c3aed; --purple-bg:#ede9fe; --purple-text:#7c3aed;
-  --red:#ef4444;    --red-dark:#dc2626;    --red-bg:#fee2e2;    --red-text:#dc2626;
+/* ============================================================================
+   Handover Scheduler (EDCS-Gate) — Reimagined design system  v3
+   Drop-in replacement for static/css/app.css
+   - Restyles ALL screens (keeps every existing class hook)
+   - Full LIGHT + DARK mode (driven by <html data-theme="…">)
+   - Verify page relaid so all fields fit with no scrolling (CSS-only, no JS change)
+   Palette stays in the original indigo / brand-blue family.
+   ============================================================================ */
 
-  --page-bg:#f1f5f9; --surface:#fff; --surface-alt:#f8faff;
-  --border:#e8edf5; --border-strong:#e0e7ff; --border-row:#f1f5f9;
-  --text:#1e1b4b; --text-secondary:#64748b; --text-tertiary:#94a3b8;
+/* ---- 1. Design tokens (LIGHT) -------------------------------------------- */
+:root{
+  --indigo:#4f46e5; --indigo-dark:#3730a3; --indigo-soft:#eef2ff; --indigo-border:#c7d2fe;
+  --brand-blue:#012970; --brand-grad:linear-gradient(135deg,#657ce5 0%,#4f46e5 45%,#120aa5 100%);
 
-  --radius-card:18px; --radius-box:14px; --radius-md:10px; --radius-full:999px;
-  --shadow-card:0 3px 16px rgba(0,0,0,.055);
-  --shadow-card-hover:0 10px 32px rgba(79,70,229,.13);
-  --shadow-box:0 2px 8px rgba(0,0,0,.04);
-  --font-body:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --blue:#3b82f6;  --blue-bg:#dbeafe;  --blue-text:#1d4ed8;
+  --green:#10b981; --green-dark:#059669; --green-bg:#dcfce7; --green-text:#047857;
+  --amber:#f59e0b; --amber-dark:#d97706; --amber-bg:#fef3c7; --amber-text:#b45309;
+  --purple:#8b5cf6;--purple-bg:#ede9fe;  --purple-text:#7c3aed;
+  --red:#ef4444;   --red-dark:#dc2626;   --red-bg:#fee2e2;   --red-text:#dc2626;
 
-  /* aliases for a few older inline style="" references across templates */
+  --page-bg:#f4f6fb; --surface:#ffffff; --surface-alt:#f7f9fd; --surface-sunken:#f1f4fa;
+  --border:#e6ebf4; --border-strong:#dbe2f1; --border-row:#eef1f8;
+  --text:#171633; --text-secondary:#5b6478; --text-tertiary:#94a0b4;
+
+  --banner-pass-bg:#f0fdf4; --banner-pass-tx:#166534;
+  --banner-fail-bg:#fff1f2; --banner-fail-tx:#9f1239;
+  --banner-warn-bg:#fffbeb; --banner-warn-tx:#92400e;
+  --banner-info-bg:#eff6ff; --banner-info-tx:#1e40af;
+
+  --radius-card:20px; --radius-box:14px; --radius-md:11px; --radius-sm:8px; --radius-full:999px;
+  --shadow-xs:0 1px 2px rgba(16,24,64,.05);
+  --shadow-sm:0 2px 8px rgba(16,24,64,.06);
+  --shadow-card:0 4px 20px rgba(23,22,51,.06),0 1px 3px rgba(23,22,51,.04);
+  --shadow-card-hover:0 16px 40px rgba(79,70,229,.16),0 2px 8px rgba(23,22,51,.06);
+  --shadow-pop:0 12px 32px rgba(16,24,64,.14);
+  --ring:0 0 0 3px rgba(79,70,229,.18);
+  --ease:cubic-bezier(.4,0,.2,1); --dur:.2s;
+  --font-body:'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+  --auth-bg:linear-gradient(135deg,#eef1fb 0%,#c7d2fe 45%,#8ea2ea 100%);
+
   --danger:var(--red-text); --success:var(--green-text); --primary-active:var(--indigo-dark);
-  --surface-alt-2:var(--surface-alt); --info-bg:#eff6ff; --warning:var(--amber-dark);
+  --surface-alt-2:var(--surface-alt); --info-bg:var(--banner-info-bg); --warning:var(--amber-dark);
 }
+
+/* ---- 1b. Dark theme overrides -------------------------------------------- */
+html[data-theme="dark"]{
+  --indigo:#818cf8; --indigo-dark:#a5b4fc; --indigo-soft:#232a52; --indigo-border:#3a4478;
+  --brand-blue:#c7d2fe;
+  --blue-bg:rgba(59,130,246,.18); --blue-text:#93c5fd;
+  --green:#34d399; --green-dark:#4ade80; --green-bg:rgba(16,185,129,.16); --green-text:#4ade80;
+  --amber:#fbbf24; --amber-dark:#fbbf24; --amber-bg:rgba(245,158,11,.16); --amber-text:#fbbf24;
+  --purple:#c4b5fd; --purple-bg:rgba(139,92,246,.2); --purple-text:#c4b5fd;
+  --red:#f87171; --red-dark:#f87171; --red-bg:rgba(239,68,68,.16); --red-text:#f87171;
+
+  --page-bg:#0f1220; --surface:#171a2b; --surface-alt:#1d2136; --surface-sunken:#141830;
+  --border:#262b42; --border-strong:#333b5a; --border-row:#232840;
+  --text:#e8ebf5; --text-secondary:#a7b0c8; --text-tertiary:#7a8299;
+
+  --banner-pass-bg:rgba(16,185,129,.14); --banner-pass-tx:#6ee7b7;
+  --banner-fail-bg:rgba(244,63,94,.14); --banner-fail-tx:#fda4af;
+  --banner-warn-bg:rgba(245,158,11,.14); --banner-warn-tx:#fcd34d;
+  --banner-info-bg:rgba(59,130,246,.14); --banner-info-tx:#93c5fd;
+
+  --shadow-card:0 4px 22px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.4);
+  --shadow-card-hover:0 18px 44px rgba(0,0,0,.55);
+  --shadow-pop:0 14px 34px rgba(0,0,0,.55);
+  --ring:0 0 0 3px rgba(129,140,248,.3);
+  --auth-bg:radial-gradient(1000px 500px at 50% -10%,#242c58 0,#0f1220 60%);
+  --brand-grad:linear-gradient(135deg,#6d7ceb 0%,#5b52e8 45%,#3b2fb8 100%);
+}
+
+/* ---- 2. Base ------------------------------------------------------------- */
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;font-family:var(--font-body);color:var(--text);min-height:100vh}
-body{background:var(--page-bg)}
-body.auth-body{display:flex;align-items:center;justify-content:center;background:linear-gradient(132deg,#ebefefed 0%,#6b8deab3 100%)}
-h1{font-size:1.45rem;font-weight:800;margin:0 0 4px;letter-spacing:-.03em;color:var(--text)}
-h2{font-size:.97rem;font-weight:700;margin:0 0 10px;color:var(--text)}
-p{color:var(--text-tertiary);margin:0 0 16px;line-height:1.55;font-size:.84rem}
-a{color:var(--indigo)}
+html,body{margin:0;padding:0;font-family:var(--font-body);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{background:radial-gradient(1200px 600px at 100% -10%,rgba(120,140,230,.10),transparent 60%),var(--page-bg);transition:background .3s var(--ease),color .3s var(--ease)}
+body.auth-body{display:flex;align-items:center;justify-content:center;background:var(--auth-bg);background-attachment:fixed}
+h1{font-size:1.5rem;font-weight:800;margin:0 0 4px;letter-spacing:-.02em;color:var(--text)}
+h2{font-size:1rem;font-weight:700;margin:0 0 10px;color:var(--text);letter-spacing:-.01em}
+h3,h4{letter-spacing:-.01em}
+p{color:var(--text-secondary);margin:0 0 16px;line-height:1.55;font-size:.86rem}
+a{color:var(--indigo);text-decoration:none;transition:color var(--dur) var(--ease)}
+a:hover{color:var(--indigo-dark)}
 i.bi{line-height:1}
+::selection{background:rgba(79,70,229,.18)}
 
-/* ── Navbar ── */
-.navbar{height:60px;background:var(--surface);border-bottom:none;display:flex;align-items:center;justify-content:space-between;padding:0 2rem;position:sticky;top:0;z-index:50;box-shadow:0 2px 20px rgba(1,41,112,.1)}
-.navbar .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.3rem;color:var(--brand-blue);text-decoration:none;white-space:nowrap}
-.logo-mark{width:26px;height:26px; mix-blend-mode: multiply}
-.nav-right{display:flex;align-items:center;gap:.5rem}
-.pill{display:inline-flex;align-items:center;gap:.4rem;padding:.42rem .95rem;border-radius:var(--radius-full);font-size:.8rem;font-weight:700;text-decoration:none;border:1.5px solid transparent}
-.pill.user{background:linear-gradient(135deg,#657ce5,#120aa5);color:#fff;box-shadow:0 2px 8px rgba(79,70,229,.28);border-radius:var(--radius-full)}
-.pill.logout{background:#fff1f2;color:#e11d48;border-color:#fecdd3}
-.pill.logout:hover{background:#ffe4e6}
-.pill.navlink{background:#eef2ff;color:var(--brand-blue);border-color:#c7d2fe;border-radius:8px}
-.pill.navlink:hover{background:#e0e7ff;color:var(--indigo-dark)}
-.pill.navlink.active{background:linear-gradient(135deg,#657ce5,#120aa5);color:#fff;border-color:transparent}
-.nav-sep{width:1px;height:26px;background:#e2e8f0;margin:0 4px}
+/* ---- 3. Navbar ----------------------------------------------------------- */
+.navbar{height:64px;background:color-mix(in srgb,var(--surface) 82%,transparent);backdrop-filter:saturate(160%) blur(14px);
+  border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;
+  padding:0 1.75rem;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 rgba(1,41,112,.04),0 8px 24px rgba(1,41,112,.05)}
+.navbar .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.22rem;white-space:nowrap;letter-spacing:-.02em;color:var(--brand-blue)}
+.navbar-logo,.logo-mark{width:28px;height:28px;object-fit:contain;mix-blend-mode:multiply}
+html[data-theme="dark"] .navbar-logo{mix-blend-mode:normal}
+.brand-name{background:linear-gradient(90deg,var(--brand-blue),var(--indigo));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.nav-right{display:flex;align-items:center;gap:.45rem}
+.pill{display:inline-flex;align-items:center;gap:.42rem;padding:.46rem 1rem;border-radius:var(--radius-full);
+  font-size:.8rem;font-weight:700;border:1.5px solid transparent;transition:all var(--dur) var(--ease);cursor:pointer}
+.pill.navlink{background:var(--indigo-soft);color:var(--brand-blue);border-color:transparent;border-radius:10px}
+.pill.navlink:hover{background:var(--indigo-soft);color:var(--indigo-dark);transform:translateY(-1px);filter:brightness(1.03)}
+.pill.navlink.active{background:var(--brand-grad);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(79,70,229,.35)}
+.pill.navlink.active i{color:#fff}
+.pill.user{background:var(--brand-grad);color:#fff;box-shadow:0 3px 12px rgba(79,70,229,.3)}
+.pill.logout{background:var(--red-bg);color:var(--red-text);border-color:transparent}
+.pill.logout:hover{filter:brightness(1.05)}
+.nav-sep{width:1px;height:26px;background:var(--border-strong);margin:0 6px}
 
-/* ── Shell: sidebar + content ── */
-.app-shell{display:flex;min-height:calc(100vh - 60px)}
-.sidebar{width:224px;background:var(--surface);border-right:1px solid var(--border);padding:18px 12px;flex-shrink:0}
-.sidebar a{display:flex;align-items:center;gap:10px;padding:.6rem .85rem;margin:2px 0;border-radius:8px;color:var(--text-secondary);text-decoration:none;font-size:.85rem;font-weight:600}
+/* ---- 3b. Theme toggle (floating, present on every page) ------------------ */
+.theme-toggle{position:fixed;bottom:22px;right:22px;z-index:200;width:48px;height:48px;border-radius:50%;
+  border:1.5px solid var(--border-strong);background:var(--surface);color:var(--indigo);cursor:pointer;
+  box-shadow:var(--shadow-pop);font-size:1.15rem;display:flex;align-items:center;justify-content:center;
+  transition:transform .2s var(--ease),background .3s var(--ease),color .3s var(--ease)}
+.theme-toggle:hover{transform:translateY(-2px) scale(1.06)}
+.theme-toggle:focus-visible{outline:none;box-shadow:var(--ring)}
+.theme-toggle .bi-sun-fill{display:none}
+html[data-theme="dark"] .theme-toggle .bi-moon-stars-fill{display:none}
+html[data-theme="dark"] .theme-toggle .bi-sun-fill{display:block}
+
+/* ---- 4. Shell ------------------------------------------------------------ */
+.app-shell{display:flex;min-height:calc(100vh - 64px)}
+.sidebar{width:232px;background:var(--surface);border-right:1px solid var(--border);padding:18px 12px;flex-shrink:0}
+.sidebar a{display:flex;align-items:center;gap:10px;padding:.62rem .85rem;margin:2px 0;border-radius:10px;
+  color:var(--text-secondary);font-size:.85rem;font-weight:600;transition:all var(--dur) var(--ease)}
 .sidebar a i.bi{font-size:1rem;width:18px;text-align:center}
-.sidebar a:hover{background:#eef2ff;color:var(--indigo-dark)}
-.sidebar a.active{background:linear-gradient(135deg,#657ce5,#120aa5);color:#fff}
+.sidebar a:hover{background:var(--indigo-soft);color:var(--indigo-dark)}
+.sidebar a.active{background:var(--brand-grad);color:#fff}
 .content-area{flex:1;min-width:0}
-.container{max-width:1600px;margin:0 auto;padding:1.6rem 2.5rem 3rem}
+.container{max-width:1600px;margin:0 auto;padding:1.9rem 2.6rem 3.5rem;animation:fade-up .4s var(--ease) both}
+@keyframes fade-up{from{opacity:0;transform:translateY(10px)}}
 
-/* ── Panels / cards ── */
-.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);box-shadow:var(--shadow-card);transition:box-shadow .2s,transform .2s}
-.panel.pad{padding:1.35rem}
-.empty-state{text-align:center;padding:3.5rem 1rem;color:#cbd5e1}
-.empty-state .bi{font-size:2.4rem;display:block;margin-bottom:.6rem;opacity:.4}
+/* ---- 5. Panels / cards --------------------------------------------------- */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);
+  box-shadow:var(--shadow-card);transition:box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease),background .3s var(--ease)}
+.panel.pad{padding:1.5rem}
+.empty-state{text-align:center;padding:3.5rem 1rem;color:var(--text-tertiary)}
+.empty-state .bi{font-size:2.6rem;display:block;margin-bottom:.7rem;opacity:.5;color:var(--indigo)}
+.panel-accent{border-left:4px solid var(--indigo)}
+.panel-accent-warning,.panel-accent-amber{border-left:4px solid var(--amber)}
+.panel-accent-info{border-left:4px solid var(--blue);background:var(--banner-info-bg)}
 
-/* ── Forms ── */
-.field-group{margin-bottom:15px}
-.field-group label{display:block;font-size:.8rem;font-weight:700;margin-bottom:5px;color:var(--text)}
-.field-hint{font-size:.74rem;color:var(--text-tertiary);margin-top:4px}
+/* ---- 6. Forms ------------------------------------------------------------ */
+.field-group{margin-bottom:16px}
+.field-group label{display:block;font-size:.8rem;font-weight:700;margin-bottom:6px;color:var(--text)}
+.field-hint{font-size:.75rem;color:var(--text-tertiary);margin-top:5px}
 input[type=text],input[type=email],input[type=password],input[type=date],select,textarea{
-  width:100%;padding:.6rem .8rem;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);
-  font:inherit;font-size:.87rem;background:var(--surface);color:var(--text)}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  width:100%;padding:.62rem .85rem;border:1.5px solid var(--border-strong);border-radius:var(--radius-md);
+  font:inherit;font-size:.87rem;background:var(--surface);color:var(--text);
+  transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease),background .3s var(--ease)}
+input::placeholder,textarea::placeholder{color:var(--text-tertiary)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--indigo);box-shadow:var(--ring)}
+select{cursor:pointer}
+select option{background:var(--surface);color:var(--text)}
 
-/* ── Buttons ── */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.58rem 1.1rem;border:none;
-  border-radius:var(--radius-md);font:700 .83rem var(--font-body);cursor:pointer;text-decoration:none;transition:opacity .15s,transform .12s}
-.btn-primary{background:linear-gradient(135deg,#657ce5,#120aa5);color:#fff}
-.btn-primary:hover{opacity:.92;color:#fff}
-.btn-primary:disabled{background:#cbd5e1;cursor:not-allowed;opacity:1;color:#fff}
-.btn-secondary{background:#fff;border:1.5px solid var(--border-strong);color:var(--text)}
-.btn-secondary:hover{background:var(--surface-alt);color:var(--text);border-color:var(--border-strong)}
-.btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
-.btn-success:hover{opacity:.9;color:#fff}
+/* ---- 7. Buttons ---------------------------------------------------------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.45rem;padding:.6rem 1.15rem;border:none;
+  border-radius:var(--radius-md);font:700 .83rem var(--font-body);cursor:pointer;
+  transition:transform .12s var(--ease),box-shadow var(--dur) var(--ease),opacity var(--dur) var(--ease),background var(--dur) var(--ease)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:none;box-shadow:var(--ring)}
+.btn-primary{background:var(--brand-grad);color:#fff;box-shadow:0 3px 12px rgba(79,70,229,.28)}
+.btn-primary:hover{color:#fff;box-shadow:0 6px 18px rgba(79,70,229,.4);transform:translateY(-1px)}
+.btn-primary:disabled{background:var(--border-strong);box-shadow:none;cursor:not-allowed;color:var(--text-tertiary);transform:none}
+.btn-secondary{background:var(--surface);border:1.5px solid var(--border-strong);color:var(--text)}
+.btn-secondary:hover{background:var(--surface-alt);border-color:var(--indigo-border)}
+.btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:0 3px 12px rgba(16,185,129,.28)}
+.btn-success:hover{color:#fff;transform:translateY(-1px);box-shadow:0 6px 18px rgba(16,185,129,.38)}
 .btn-ghost{background:transparent;color:var(--text-secondary)}
-.btn-ghost:hover{background:var(--surface-alt);color:var(--text-secondary)}
+.btn-ghost:hover{background:var(--surface-alt);color:var(--text)}
 .btn-danger{background:var(--red-bg);color:var(--red-text)}
-.btn-danger:hover{background:#fecaca;color:var(--red-text);border-color:transparent}
-.btn:disabled,.btn[disabled]{opacity:.55;cursor:not-allowed;filter:none;color:inherit}
-.btn-danger:disabled{background:var(--surface-alt);color:var(--text-tertiary)}
+.btn-danger:hover{filter:brightness(1.05);color:var(--red-text)}
+.btn:disabled,.btn[disabled]{opacity:.55;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-danger:disabled{background:var(--surface-alt);color:var(--text-tertiary);opacity:1}
 .btn-block{width:100%}
-.btn-sm{padding:.42rem .85rem;font-size:.78rem}
+.btn-sm{padding:.44rem .85rem;font-size:.78rem}
 
-/* ── Alerts (left-border style, matching PAMS) ── */
-.flash-stack{position:fixed;top:70px;right:22px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:400px}
-.alert{padding:.7rem 1rem;border-radius:10px;font-size:.86rem;font-weight:600;border:none;box-shadow:0 4px 14px rgba(0,0,0,.08);animation:slide .25s}
+/* ---- 8. Alerts ----------------------------------------------------------- */
+.flash-stack{position:fixed;top:76px;right:22px;z-index:100;display:flex;flex-direction:column;gap:10px;max-width:400px}
+.alert{padding:.8rem 1.05rem;border-radius:12px;font-size:.86rem;font-weight:600;border:none;
+  box-shadow:var(--shadow-pop);animation:slide .28s var(--ease);display:flex;align-items:center;gap:.5rem}
 @keyframes slide{from{transform:translateX(30px);opacity:0}}
-.alert-success{background:#f0fdf4;color:#166534;border-left:4px solid #22c55e}
-.alert-danger,.alert-error{background:#fff1f2;color:#9f1239;border-left:4px solid #f43f5e}
-.alert-warning{background:#fffbeb;color:#92400e;border-left:4px solid #f59e0b}
-.alert-info{background:#eff6ff;color:#1e40af;border-left:4px solid #3b82f6}
+.alert-success{background:var(--banner-pass-bg);color:var(--banner-pass-tx);border-left:4px solid var(--green)}
+.alert-danger,.alert-error{background:var(--banner-fail-bg);color:var(--banner-fail-tx);border-left:4px solid var(--red)}
+.alert-warning{background:var(--banner-warn-bg);color:var(--banner-warn-tx);border-left:4px solid var(--amber)}
+.alert-info{background:var(--banner-info-bg);color:var(--banner-info-tx);border-left:4px solid var(--blue)}
 
-/* ── Badges / status pills (bp- = job status; bdg- = small inline tag) ── */
-.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.28rem .75rem;border-radius:var(--radius-full);font-size:.75rem;font-weight:700;text-transform:capitalize}
-.badge-pass,.badge-PASSED,.badge-scheduled,.badge-REQUESTED,.badge-CONFIRMED{background:#dcfce7;color:#166534}
-.badge-fail,.badge-FAILED,.badge-cancelled,.badge-CANCELLED{background:#fee2e2;color:#991b1b}
-.badge-ERROR{background:#fef9c3;color:#854d0e}
-.badge-RUNNING,.badge-PENDING,.badge-upcoming{background:#dbeafe;color:#1e40af}
-.badge-completed{background:#eef2ff;color:#4f46e5}
-.pill-person{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .65rem;border-radius:var(--radius-full);background:#eef2ff;color:#4f46e5;font-size:.75rem;font-weight:700}
+/* ---- 9. Badges ----------------------------------------------------------- */
+.badge{display:inline-flex;align-items:center;gap:.32rem;padding:.3rem .78rem;border-radius:var(--radius-full);
+  font-size:.74rem;font-weight:700;text-transform:capitalize;letter-spacing:.01em}
+.badge-pass,.badge-PASSED,.badge-scheduled,.badge-REQUESTED,.badge-CONFIRMED{background:var(--green-bg);color:var(--green-text)}
+.badge-fail,.badge-FAILED,.badge-cancelled,.badge-CANCELLED{background:var(--red-bg);color:var(--red-text)}
+.badge-ERROR{background:var(--amber-bg);color:var(--amber-text)}
+.badge-RUNNING,.badge-PENDING,.badge-upcoming{background:var(--blue-bg);color:var(--blue-text)}
+.badge-completed{background:var(--indigo-soft);color:var(--indigo)}
+.badge-type-exec{background:var(--green-bg);color:var(--green-text)}
+.badge-type-health{background:var(--amber-bg);color:var(--amber-text)}
+.badge-type-backup{background:var(--purple-bg);color:var(--purple-text)}
+.badge-type-jira{background:var(--indigo-soft);color:var(--indigo)}
+.badge-type-neutral{background:var(--surface-alt);color:var(--text-secondary)}
+.pill-person{display:inline-flex;align-items:center;gap:.32rem;padding:.22rem .68rem;border-radius:var(--radius-full);
+  background:var(--indigo-soft);color:var(--indigo);font-size:.75rem;font-weight:700}
 
-/* ── Tables (jtable style) ── */
+/* ---- 10. Tables ---------------------------------------------------------- */
+.table-scroll{overflow-x:auto;border-radius:var(--radius-box)}
 .data-table{width:100%;border-collapse:collapse;font-size:.83rem}
 .data-table thead tr{background:var(--surface-alt)}
-.data-table th{text-align:left;padding:.65rem 1.1rem;color:var(--text-tertiary);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700;border-bottom:1px solid var(--border)}
-.data-table td{padding:.7rem 1.1rem;border-bottom:1px solid var(--border-row);white-space:nowrap}
+.data-table th{text-align:left;padding:.72rem 1.1rem;color:var(--text-tertiary);font-size:.7rem;
+  text-transform:uppercase;letter-spacing:.07em;font-weight:800;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface-alt);z-index:1}
+.data-table td{padding:.75rem 1.1rem;border-bottom:1px solid var(--border-row);white-space:nowrap;color:var(--text)}
 .data-table td.wrap-truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 .data-table tr:last-child td{border-bottom:none}
-.data-table tr:hover td{background:#fafbff}
+.data-table tbody tr{transition:background var(--dur) var(--ease)}
+.data-table tbody tr:hover td{background:var(--surface-sunken)}
 
-/* ── Stat cards (exact PAMS stat-box) ── */
-.dashboard-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.6rem;gap:1rem;flex-wrap:wrap}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1rem;margin-bottom:1.6rem}
-.stat-card{background:#fff;border-radius:var(--radius-box);padding:1rem 1.2rem;border:1px solid var(--border);box-shadow:var(--shadow-box);display:flex;align-items:center;gap:.85rem}
-.stat-icon-badge{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0}
-.stat-icon-badge.acc-indigo{background:#eef2ff;color:#4f46e5}
-.stat-icon-badge.acc-blue{background:#dbeafe;color:#2563eb}
-.stat-icon-badge.acc-green{background:#dcfce7;color:#059669}
-.stat-icon-badge.acc-red{background:#fee2e2;color:#dc2626}
-.stat-icon-badge.acc-orange{background:var(--amber-bg);color:var(--amber-text)}
+/* ---- 11. Stat cards ------------------------------------------------------ */
+.dashboard-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.7rem;gap:1rem;flex-wrap:wrap}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1.1rem;margin-bottom:1.7rem}
+.stat-card{background:var(--surface);border-radius:var(--radius-box);padding:1.15rem 1.3rem;border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);display:flex;align-items:center;gap:.95rem;position:relative;overflow:hidden;
+  transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease),background .3s var(--ease)}
+.stat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-card-hover)}
+.stat-icon-badge{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0}
+.stat-icon-badge.acc-indigo{background:var(--indigo-soft);color:var(--indigo)}
+.stat-icon-badge.acc-blue{background:var(--blue-bg);color:var(--blue-text)}
+.stat-icon-badge.acc-green{background:var(--green-bg);color:var(--green-dark)}
+.stat-icon-badge.acc-red{background:var(--red-bg);color:var(--red-dark)}
+.stat-icon-badge.acc-orange,.stat-icon-badge.acc-amber{background:var(--amber-bg);color:var(--amber-text)}
 .stat-icon-badge.acc-purple{background:var(--purple-bg);color:var(--purple-text)}
-.stat-card h3{margin:0;font-size:1.5rem;font-weight:800;color:var(--text);line-height:1}
-.stat-card span{font-size:.72rem;color:var(--text-tertiary);font-weight:500}
+.stat-card h3{margin:0;font-size:1.7rem;font-weight:800;color:var(--text);line-height:1;letter-spacing:-.02em}
+.stat-card span{font-size:.72rem;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
 .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
-.table-toolbar{display:flex;justify-content:space-between;align-items:center;margin:1.1rem 0 .7rem;padding:1.1rem 1.4rem 0}
+.table-toolbar{display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 .8rem;flex-wrap:wrap;gap:.6rem}
 
-/* ── Accent top-stripe cards (task-card style, used for check/progress cards) ── */
-.accent-card,.check-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius-card);
-  padding:0;text-align:center;box-shadow:var(--shadow-card);position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s}
+/* ---- 12. Check / progress cards ------------------------------------------ */
+.accent-card,.check-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);
+  padding:0;text-align:center;box-shadow:var(--shadow-card);position:relative;overflow:hidden;
+  transition:box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .accent-card:hover,.check-card:hover{box-shadow:var(--shadow-card-hover);transform:translateY(-3px)}
-.accent-card::before,.check-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px}
+.accent-card::before,.check-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--border-strong)}
 .check-card.pass::before{background:linear-gradient(90deg,#10b981,#059669)}
 .check-card.fail::before{background:linear-gradient(90deg,#ef4444,#dc2626)}
 .check-card.running::before{background:linear-gradient(90deg,#3b82f6,#2563eb)}
-.check-card .check-icon{font-size:1.5rem;margin:18px 0 6px}
-.check-card h4{margin:0 0 12px;font-size:.88rem;font-weight:700;padding:0 16px}
-.check-card .badge{margin-bottom:16px}
-.progress-track{height:6px;background:var(--surface-alt);border-radius:5px;overflow:hidden;margin:0 16px 16px}
-.progress-track>span{display:block;height:100%;background:var(--indigo);transition:width .5s}
-.section-block{margin-top:2rem}
+.check-card .check-icon{font-size:1.7rem;margin:20px 0 8px}
+.check-card h4{margin:0 0 12px;font-size:.88rem;font-weight:700;padding:0 16px;color:var(--text)}
+.check-card .badge{margin-bottom:18px}
+.progress-track{height:7px;background:var(--surface-sunken);border-radius:5px;overflow:hidden;margin:0 16px 18px}
+.progress-track>span{display:block;height:100%;background:var(--brand-grad);transition:width .5s var(--ease)}
+.section-block{margin-top:2.2rem}
 
-/* ── Verify ── */
-.verify-layout{display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:1.3rem;align-items:stretch}
+/* ---- 13. VERIFY — relaid so every field fits with no scrolling ----------- */
+.verify-layout{display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:1.4rem;align-items:stretch}
 .verify-layout>.panel{height:100%;display:flex;flex-direction:column}
 .verify-layout>.panel>.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.verify-layout>.panel>.empty-state .bi{font-size:2.2rem;opacity:.35;color:var(--indigo)}
-.overall-banner{padding:.8rem 1.1rem;border-radius:10px;font-weight:700;font-size:.9rem;margin-bottom:1rem;border:none}
-.overall-banner.pass{background:#f0fdf4;color:#166534;border-left:4px solid #22c55e}
-.overall-banner.fail{background:#fff1f2;color:#9f1239;border-left:4px solid #f43f5e}
-.overall-banner.error{background:#fffbeb;color:#92400e;border-left:4px solid #f59e0b}
+.verify-layout>.panel>.empty-state .bi{font-size:2.4rem;opacity:.4;color:var(--indigo)}
+@media (min-width:900px){
+  /* give the form more room, then flow its fields into two columns */
+  .verify-layout{grid-template-columns:minmax(480px,1.35fr) minmax(320px,1fr)}
+  .verify-layout>.panel.pad:first-of-type{display:grid;grid-template-columns:1fr 1fr;column-gap:1.1rem;align-content:start}
+  .verify-layout>.panel.pad:first-of-type>.overall-banner,
+  .verify-layout>.panel.pad:first-of-type>#run-btn,
+  .verify-layout>.panel.pad:first-of-type>#run-err{grid-column:1 / -1}
+  .verify-layout>.panel.pad:first-of-type>#run-btn{margin-top:.4rem}
+}
+.overall-banner{padding:.85rem 1.1rem;border-radius:12px;font-weight:700;font-size:.9rem;margin-bottom:1rem;display:flex;align-items:center;gap:.55rem}
+.overall-banner.pass{background:var(--banner-pass-bg);color:var(--banner-pass-tx);border-left:4px solid var(--green)}
+.overall-banner.fail{background:var(--banner-fail-bg);color:var(--banner-fail-tx);border-left:4px solid var(--red)}
+.overall-banner.error{background:var(--banner-warn-bg);color:var(--banner-warn-tx);border-left:4px solid var(--amber)}
 .check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin-bottom:1rem}
 
-/* ── Scheduler / calendar (compact, PAMS-themed) ── */
-.tool-chip{display:inline-flex;align-items:center;gap:.45rem;background:#fff;color:var(--indigo);border:2px solid #c7d2fe;
-  border-radius:var(--radius-full);padding:.42rem 1rem;font-weight:700;font-size:.8rem;margin-bottom:8px;box-shadow:0 2px 8px rgba(79,70,229,.1)}
+/* ---- 14. Scheduler / calendar -------------------------------------------- */
+.tool-chip{display:inline-flex;align-items:center;gap:.5rem;background:var(--surface);color:var(--indigo);
+  border:1.5px solid var(--indigo-border);border-radius:var(--radius-full);padding:.46rem 1.05rem;font-weight:700;
+  font-size:.8rem;margin-bottom:8px;box-shadow:var(--shadow-xs)}
 .slot-note{font-size:.8rem;color:var(--text-tertiary);margin-bottom:14px}
-.scheduler-layout{display:grid;grid-template-columns:minmax(560px,2.3fr) minmax(360px,1fr);gap:1.5rem;align-items:start}
+.scheduler-layout{display:grid;grid-template-columns:minmax(560px,2.3fr) minmax(360px,1fr);gap:1.6rem;align-items:start}
 .holidays-card{width:100%}
-.picker-grid{display:grid;grid-template-columns:minmax(360px,440px) minmax(300px,400px);gap:1.8rem;align-items:start}
+.picker-grid{display:grid;grid-template-columns:minmax(360px,440px) minmax(300px,400px);gap:1.9rem;align-items:start}
 .picker-col-cal,.picker-col-form{min-width:0}
 .calendar-legend{display:flex;gap:14px;font-size:.76rem;color:var(--text-secondary);margin-bottom:12px;font-weight:600}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:1px}
-.dot-bookable{background:var(--green)}
-.dot-booked{background:var(--red)}
-.dot-blocked{background:var(--border-strong)}
-.calendar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
-.calendar-header h3{margin:0;font-size:1rem;font-weight:800;color:var(--text)}
-.cal-nav-btn{width:30px;height:30px;border:1.5px solid var(--border-strong);background:#fff;border-radius:8px;cursor:pointer;font-size:.9rem;color:var(--indigo)}
-.cal-nav-btn:hover{background:#eef2ff}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+.dot-bookable{background:var(--green)} .dot-booked{background:var(--red)} .dot-blocked{background:var(--border-strong)}
+.calendar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.calendar-header h3{margin:0;font-size:1.02rem;font-weight:800;color:var(--text)}
+.cal-nav-btn{width:32px;height:32px;border:1.5px solid var(--border-strong);background:var(--surface);border-radius:9px;
+  cursor:pointer;font-size:.9rem;color:var(--indigo);transition:all var(--dur) var(--ease)}
+.cal-nav-btn:hover{background:var(--indigo-soft);border-color:var(--indigo-border)}
 .cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:.72rem;color:var(--text-tertiary);font-weight:800;margin-bottom:6px}
 #calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:9px;font-size:.86rem;font-weight:700;border:1px solid transparent;max-width:46px;max-height:46px;width:100%;margin:0 auto}
-.cal-day.bookable{background:#dcfce7;color:#059669;cursor:pointer}
-.cal-day.bookable:hover{outline:2px solid #10b981}
-.cal-day.selected{outline:2.5px solid var(--indigo);background:#eef2ff;color:var(--indigo)}
-.cal-day.booked{background:#fee2e2;color:#dc2626;cursor:not-allowed}
+.cal-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:11px;font-size:.86rem;font-weight:700;
+  border:1px solid transparent;max-width:46px;max-height:46px;width:100%;margin:0 auto;transition:all .15s var(--ease)}
+.cal-day.bookable{background:var(--green-bg);color:var(--green-dark);cursor:pointer}
+.cal-day.bookable:hover{outline:2px solid var(--green);transform:scale(1.06)}
+.cal-day.selected{outline:2.5px solid var(--indigo);background:var(--indigo-soft);color:var(--indigo)}
+.cal-day.booked{background:var(--red-bg);color:var(--red-dark);cursor:not-allowed}
 .cal-day.blocked{background:var(--surface-alt);color:var(--text-tertiary);cursor:not-allowed}
 .cal-day.empty{visibility:hidden}
-.slot-pick{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
-.slot-btn{border:1.5px solid var(--border-strong);background:#fff;border-radius:9px;padding:.4rem .75rem;font:700 .78rem var(--font-body);cursor:pointer;color:var(--text)}
-.slot-btn.sel{border-color:var(--indigo);background:#eef2ff;color:var(--indigo)}
-.booking-preview{background:var(--surface-alt);border:1.5px dashed #c7d2fe;border-radius:11px;padding:.65rem .9rem;font-size:.8rem;margin:12px 0;display:grid;gap:4px}
+.slot-pick{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 4px}
+.slot-btn{border:1.5px solid var(--border-strong);background:var(--surface);border-radius:10px;padding:.44rem .8rem;
+  font:700 .78rem var(--font-body);cursor:pointer;color:var(--text);transition:all var(--dur) var(--ease)}
+.slot-btn:hover{border-color:var(--indigo-border);background:var(--indigo-soft)}
+.slot-btn.sel{border-color:var(--indigo);background:var(--indigo-soft);color:var(--indigo)}
+.booking-preview{background:var(--surface-alt);border:1.5px dashed var(--indigo-border);border-radius:12px;
+  padding:.75rem .95rem;font-size:.8rem;margin:12px 0;display:grid;gap:5px;color:var(--text)}
 
-/* ── Auth card (exact PAMS login: sharp radius, dramatic shadow) ── */
-.auth-card{width:420px;max-width:94vw;background:#fff;border-radius:5px;box-shadow:0 25px 60px rgba(0,0,0,.4);padding:2.5rem 2rem;text-align:center}
-.auth-card .brand-row{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:1.5rem;color:#1a1d29;margin-bottom:4px}
-.auth-sub{font-size:.9rem;color:#64748b;margin-bottom:1.8rem}
-.auth-alt{font-size:.85rem;text-align:center;margin-top:16px;color:#64748b}
+/* ---- 15. Auth card ------------------------------------------------------- */
+.auth-card{width:430px;max-width:94vw;background:var(--surface);border-radius:var(--radius-card);
+  box-shadow:var(--shadow-pop);padding:2.6rem 2.2rem;text-align:center;border:1px solid var(--border);
+  animation:fade-up .45s var(--ease) both}
+.auth-card .brand-row{display:flex;align-items:center;justify-content:center;gap:9px;font-weight:800;font-size:1.5rem;color:var(--brand-blue);margin-bottom:4px;letter-spacing:-.02em}
+.auth-sub{font-size:.9rem;color:var(--text-secondary);margin-bottom:1.8rem}
+.auth-alt{font-size:.85rem;text-align:center;margin-top:16px;color:var(--text-secondary)}
 .auth-card .field-group{text-align:left}
-.auth-card input{border-radius:10px;padding:.75rem 1rem;border:1.5px solid #e2e8f0}
-.auth-card input:focus{border-color:#0d6efd;box-shadow:0 0 0 3px rgba(13,110,253,.12)}
-.auth-card .btn-primary{background:linear-gradient(135deg,#0d6efd,#6610f2);border-radius:10px;padding:.75rem;font-size:1rem;letter-spacing:.02em}
+.auth-card input{border-radius:var(--radius-md);padding:.75rem 1rem}
+.auth-card .btn-primary{border-radius:var(--radius-md);padding:.78rem;font-size:1rem;letter-spacing:.01em}
+/* Bootstrap input-group adornments follow the theme too */
+.input-group-text.bg-light{background:var(--surface-alt)!important;border-color:var(--border-strong)!important;color:var(--text-tertiary)!important}
+.form-control{background:var(--surface)!important;border-color:var(--border-strong)!important;color:var(--text)!important}
+.form-control:focus{box-shadow:var(--ring)!important;border-color:var(--indigo)!important}
 
-@media (max-width:1000px){
+/* ---- 16. Responsive ------------------------------------------------------ */
+@media (max-width:900px){
   .verify-layout{grid-template-columns:1fr}
   .scheduler-layout{grid-template-columns:1fr}
   .holidays-card{width:100%}
   .picker-grid{grid-template-columns:1fr}
+  .container{padding:1.3rem 1.2rem 2.5rem}
+  .navbar{padding:0 1rem}
 }
+
+/* ============================================================
+   v3 ADDITIONS — navbar theme switch, expandable table rows
+   ============================================================ */
+
+/* Visible navbar theme switch (pill with sliding knob) */
+.theme-switch{display:inline-flex;align-items:center;border:1.5px solid var(--border-strong);
+  background:var(--surface);border-radius:999px;padding:3px;cursor:pointer;line-height:0}
+.theme-switch:focus-visible{outline:none;box-shadow:var(--ring)}
+.theme-switch .ts-track{width:36px;height:20px;border-radius:999px;background:var(--surface-sunken);position:relative}
+.theme-switch .ts-knob{position:absolute;top:1px;left:1px;width:16px;height:16px;border-radius:50%;
+  background:var(--brand-grad);display:flex;align-items:center;
+  justify-content:center;color:#fff;font-size:.6rem;transition:transform var(--dur) var(--ease)}
+html[data-theme="dark"] .theme-switch .ts-knob{transform:translateX(16px)}
+.theme-switch .bi-sun-fill{display:none}
+html[data-theme="dark"] .theme-switch .bi-moon-stars-fill{display:none}
+html[data-theme="dark"] .theme-switch .bi-sun-fill{display:block}
+/* When the navbar switch is present, the floating toggle is redundant → hide it.
+   Auth pages override the shell (no navbar) so the floating one still shows there. */
+.navbar ~ .theme-toggle{display:none}
+
+/* Expandable data-table rows — essentials collapsed, full detail on expand.
+   Compact by design: dense field grid, no wasted vertical space. */
+.data-table tr.row-main{cursor:pointer}
+.data-table tr.row-main:hover > td{background:var(--surface-hover)}
+.data-table tr.row-main.open > td{background:var(--surface-hover)}
+.data-table tr.row-main > td:first-child{width:30px;text-align:center;color:var(--text-tertiary)}
+.data-table tr.row-main .row-chevron{display:inline-block;transition:transform var(--dur) var(--ease)}
+.data-table tr.row-main.open .row-chevron{transform:rotate(90deg);color:var(--indigo)}
+.data-table tr.row-detail{display:none}
+.data-table tr.row-detail.open{display:table-row}
+.data-table tr.row-detail > td{background:var(--surface-sunken);white-space:normal;padding:0;
+  border-bottom:2px solid var(--indigo)}
+/* Compact detail: tighter padding + smaller min-col so more fits per row */
+.row-detail-wrap{padding:.7rem .95rem .55rem;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.55rem .9rem;align-items:start}
+.row-detail-wrap .d-field{display:flex;flex-direction:column;gap:1px;min-width:0}
+.row-detail-wrap .d-field .d-key{font-size:.6rem;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--text-tertiary);font-weight:800}
+.row-detail-wrap .d-field .d-val{font-size:.8rem;color:var(--text);font-weight:600;word-break:break-word}
+.row-detail-wrap .d-field.d-wide{grid-column:1/-1}
+.row-detail-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:.5rem;padding-top:.5rem;
+  margin-top:.15rem;border-top:1px dashed var(--border-row)}
+.d-sub{font-size:.72rem;color:var(--text-tertiary);font-weight:600}
+.d-nowrap{white-space:nowrap}
+
