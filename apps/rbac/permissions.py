@@ -29,7 +29,8 @@ PERMISSION_CATALOGUE = [
     ("schedules", "cancel", "Cancel a scheduled meeting"),
 
     ("users", "view", "View user accounts"),
-    ("users", "create", "Create/activate user accounts"),
+    ("users", "activate", "Activate pending user registrations (only)"),
+    ("users", "create", "Create user accounts"),
     ("users", "edit", "Edit user accounts"),
     ("users", "delete", "Deactivate/delete user accounts"),
 

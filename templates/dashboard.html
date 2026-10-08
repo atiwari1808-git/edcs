@@ -12,69 +12,40 @@
   {% endif %}
 </div>
 
-<!-- ── Stat cards ── -->
+<!-- ── Stat cards (clickable filters) ── -->
 <div class="stat-grid">
-  <div class="stat-card">
+  <a href="?{% if tool_filter %}tool={{ tool_filter }}&{% endif %}{% if jira_type_filter %}jira_type={{ jira_type_filter }}&{% endif %}{% if query %}q={{ query|urlencode }}&{% endif %}{% if sm_scoped %}all=1{% endif %}"
+     class="stat-card stat-link {% if not status_filter %}stat-active{% endif %}">
     <div class="stat-icon-badge acc-indigo"><i class="bi bi-layers-fill"></i></div>
     <div><h3>{{ stats.total }}</h3><span>Total Bookings</span></div>
-  </div>
-  <div class="stat-card">
+  </a>
+  <a href="?status=scheduled{% if tool_filter %}&tool={{ tool_filter }}{% endif %}{% if jira_type_filter %}&jira_type={{ jira_type_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}{% if sm_scoped %}&all=1{% endif %}"
+     class="stat-card stat-link {% if status_filter == 'scheduled' %}stat-active{% endif %}">
     <div class="stat-icon-badge acc-blue"><i class="bi bi-calendar3"></i></div>
     <div><h3>{{ stats.upcoming }}</h3><span>Upcoming</span></div>
-  </div>
-  <div class="stat-card">
+  </a>
+  <a href="?status=completed{% if tool_filter %}&tool={{ tool_filter }}{% endif %}{% if jira_type_filter %}&jira_type={{ jira_type_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}{% if sm_scoped %}&all=1{% endif %}"
+     class="stat-card stat-link {% if status_filter == 'completed' %}stat-active{% endif %}">
     <div class="stat-icon-badge acc-green"><i class="bi bi-check-circle-fill"></i></div>
     <div><h3>{{ stats.completed }}</h3><span>Completed</span></div>
-  </div>
-  <div class="stat-card">
+  </a>
+  <a href="?status=cancelled{% if tool_filter %}&tool={{ tool_filter }}{% endif %}{% if jira_type_filter %}&jira_type={{ jira_type_filter }}{% endif %}{% if query %}&q={{ query|urlencode }}{% endif %}{% if sm_scoped %}&all=1{% endif %}"
+     class="stat-card stat-link {% if status_filter == 'cancelled' %}stat-active{% endif %}">
     <div class="stat-icon-badge acc-red"><i class="bi bi-x-circle-fill"></i></div>
     <div><h3>{{ stats.cancelled }}</h3><span>Cancelled</span></div>
-  </div>
-  <div class="stat-card">
+  </a>
+  <a href="#no-meeting" class="stat-card stat-link">
     <div class="stat-icon-badge acc-amber"><i class="bi bi-envelope-check-fill"></i></div>
     <div><h3>{{ stats.no_meeting }}</h3><span>No Meeting Needed</span></div>
-  </div>
+  </a>
 </div>
-
-<!-- ── Pending activations ── -->
-{% if pending_users %}
-<div class="panel pad panel-accent-warning" style="margin-bottom:20px">
-  <h2 style="font-size:.9rem">
-    <i class="bi bi-person-plus-fill" style="color:var(--amber-text);margin-right:6px"></i>
-    Pending account activations
-  </h2>
-  <div class="table-scroll">
-    <table class="data-table">
-      <thead>
-        <tr><th>Username</th><th>Name</th><th>Email</th><th>Registered</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for u in pending_users %}
-        <tr>
-          <td>{{ u.username }}</td>
-          <td>{{ u.get_full_name }}</td>
-          <td>{{ u.email }}</td>
-          <td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
-          <td>
-            <form method="post" action="/accounts/{{ u.id }}/activate/" style="margin:0">
-              {% csrf_token %}
-              <button class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> Activate</button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
 <!-- ── Filters ── -->
 <div class="panel" style="padding:20px 22px;margin-bottom:20px">
   <form method="get" action="/" class="filter-bar">
     <div class="field-group" style="flex:1;min-width:200px;margin:0">
       <label>Search</label>
-      <input type="text" name="q" placeholder="Username, tool, JIRA, or Scrum Master" value="{{ query }}">
+      <input type="text" name="q" placeholder="Search by name, e-mail, user ID, tool, JIRA, or Scrum Master" value="{{ query }}">
     </div>
     <div class="field-group" style="margin:0">
       <label>Tool</label>
@@ -159,7 +130,7 @@
         <td>{{ b.jira_id|default:"—" }}</td>
         <td>{{ b.automation_name|default:"—" }}</td>
         <td>
-          {% for s in b.scrum_masters %}<span class="pill-person"><i class="bi bi-person-fill"></i> {{ s.name }}</span> {% empty %}—{% endfor %}
+          {% for s in b.scrum_masters %}<span class="pill-person"><i class="bi bi-person-fill"></i> {{ s.username }}</span> {% empty %}—{% endfor %}
         </td>
         <td>{{ b.m.created_at|date:"Y-m-d H:i" }}</td>
         <td><span class="d-nowrap">{{ b.m.start_at|date:"Y-m-d H:i" }}</span></td>
@@ -258,15 +229,15 @@
 {% endif %}
 
 <!-- ── No Meeting Needed table (Healthcheck / Backup) ── -->
-<div class="table-toolbar" style="margin-top:32px">
+<div class="table-toolbar" id="no-meeting" style="margin-top:32px;scroll-margin-top:90px">
   <h2 style="margin:0">
-    <i class="bi bi-envelope-check-fill" style="color:var(--amber-text);margin-right:6px"></i>
+    <i class="bi bi-envelope-check-fill" style="margin-right:6px"></i>
     No Meeting Needed · Doc-Only Verifications ({{ no_meeting_runs|length }})
   </h2>
 </div>
 
 {% if no_meeting_runs %}
-<div class="panel panel-accent-warning" style="padding:6px 20px">
+<div class="panel" style="padding:6px 20px">
   <table class="data-table expandable">
     <thead>
       <tr>
@@ -346,7 +317,7 @@
   </table>
 </div>
 {% else %}
-<div class="panel empty-state panel-accent-warning">
+<div class="panel empty-state">
   No doc-only verifications found.
 </div>
 {% endif %}
@@ -431,6 +402,24 @@
 </div>
 
 <script>
+// Reparent a modal to <body> and reuse a single instance so it can never be
+// trapped beneath the body-level .modal-backdrop (stacking-context fix).
+function showModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.parentNode !== document.body) document.body.appendChild(el);
+  let inst = bootstrap.Modal.getInstance(el);
+  if (!inst) inst = new bootstrap.Modal(el);
+  el.addEventListener('hidden.bs.modal', function () {
+    // defensive: clear any stray backdrop / body lock left behind
+    document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  });
+  inst.show();
+}
+
 // Expand / collapse a row to reveal full details + actions.
 function toggleRow(rowEl) {
   const detail = rowEl.nextElementSibling;
@@ -465,7 +454,7 @@ function openCancelModal(meetingId, subject) {
   document.getElementById('cancelSubjectLabel').textContent = subject;
   document.getElementById('cancelReason').value = '';
   const e = document.getElementById('cancelReasonErr'); if (e) e.textContent = '';
-  new bootstrap.Modal(document.getElementById('cancelModal')).show();
+  showModal('cancelModal');
 }
 
 (function () {
@@ -492,7 +481,7 @@ function openRescheduleModal(meetingId, toolKey, subject, currentDate) {
   dateEl.value = "";
   slotEl.innerHTML = '<option value="">Pick a date first…</option>';
   errEl.textContent = "";
-  new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
+  showModal('rescheduleModal');
 }
 
 document.getElementById('reschedDate').addEventListener('change', function () {
@@ -533,3 +522,4 @@ document.getElementById('reschedDate').addEventListener('change', function () {
 })();
 </script>
 {% endblock %}
+

@@ -1,13 +1,19 @@
 """Auth + dashboard.
-Self-registration creates INACTIVE accounts; an admin
-activates them (Django admin, or the Activate button on the dashboard)."""
+
+Self-registration creates INACTIVE accounts and grants the configurable
+DEFAULT ROLE (Developer out of the box; an admin can change it on the Users
+page). An account stays inactive until someone with the `users.create`
+permission activates it from the Users page.
+"""
 import re
+
 from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_POST
+
 from apps.audit.log import log_action
 from apps.notifications import email as notify
 from apps.rbac.decorators import require_permission
@@ -51,7 +57,18 @@ def register(request):
             u = User.objects.create_user(
                 username=form["username"], email=form["email"], password=pw,
                 first_name=names[0], last_name=names[1] if len(names) > 1 else "",
-                is_active=False, role=User.Role.SCRUM_MASTER)
+                is_active=False)
+            # Grant the configurable default role (dynamic RBAC). The legacy
+            # `role` label is left at its model default; real permissions come
+            # from the assigned Role below.
+            try:
+                from apps.rbac.views import get_default_role
+                from apps.rbac.models import UserRole
+                default_role = get_default_role()
+                if default_role:
+                    UserRole.objects.get_or_create(user=u, role=default_role)
+            except Exception:
+                pass  # never block registration if RBAC seed isn't ready yet
             notify.registration_received(u)
             messages.success(
                 request,
@@ -60,25 +77,57 @@ def register(request):
     return render(request, "register.html", {"errors": errors, "form": form})
 
 
-@require_permission("users.edit")
+# Activation is gated by the dedicated `users.activate` permission so a role
+# (e.g. Scrum Master) can be granted ONLY the ability to activate pending
+# registrations without any other user-management rights. The broader
+# user-admin permissions still imply activation for backward compatibility.
+_ACTIVATE_PERMS = ("users.activate", "users.create", "users.edit")
+
+
 @require_POST
 def activate_user(request, user_id):
+    if not any(request.user.has_perm_code(p) for p in _ACTIVATE_PERMS):
+        messages.error(request, "You don't have permission to activate users.")
+        return redirect("/manage/users/")
     u = User.objects.filter(pk=user_id, is_active=False).first()
     if u:
         u.is_active = True
         u.save()
         notify.account_activated(u)
-        log_action(request.user, "user.activated", "users",
-                   f"Activated '{u.username}'")
+        log_action(request.user, "user.activated", "users", f"Activated '{u.username}'")
         messages.success(request, f"Activated account for {u.username}.")
     else:
         messages.error(request, "Could not activate that account.")
-    return redirect("/")
+    return redirect("/manage/users/")
+
+
+@require_permission("users.delete")
+@require_POST
+def deactivate_user(request, user_id):
+    u = User.objects.filter(pk=user_id, is_active=True).first()
+    if not u:
+        messages.error(request, "Could not deactivate that account.")
+        return redirect("/manage/users/")
+    if u == request.user:
+        messages.error(request, "You can't deactivate your own account.")
+        return redirect("/manage/users/")
+    if u.is_superuser:
+        messages.error(request, "Superuser accounts can't be deactivated here.")
+        return redirect("/manage/users/")
+    u.is_active = False
+    u.save()
+    log_action(request.user, "user.deactivated", "users", f"Deactivated '{u.username}'")
+    messages.success(request, f"Deactivated account for {u.username}.")
+    return redirect("/manage/users/")
 
 
 @require_permission("dashboard.view")
 def dashboard(request):
-    """Handover dashboard: stats, filters, bookings table, admin panels."""
+    """Handover dashboard: stats, filters, bookings table.
+
+    User activation now lives entirely on the Users page, so the dashboard no
+    longer surfaces a pending-activation panel.
+    """
     q             = request.GET.get("q", "").strip()
     tool_filter   = request.GET.get("tool", "")
     status_filter = request.GET.get("status", "")
@@ -91,10 +140,6 @@ def dashboard(request):
         filtered_bookings, booking_stats, no_meeting_stats)
     from apps.validation.models import ValidationRun
 
-    # ── Scrum-master auto-scoping (Req 5) ─────────────────────────────────
-    # A user who can see everything (reports.view) sees all bookings by
-    # default. Everyone else is scoped to handovers where their own email is
-    # the Scrum Master, unless they explicitly request the full list (?all=1).
     can_view_all   = request.user.has_perm_code("reports.view")
     show_all       = request.GET.get("all") == "1"
     sm_scope_email = ""
@@ -116,10 +161,6 @@ def dashboard(request):
         .select_related("requested_by", "tool", "automation_type", "jira_type")
         .order_by("-started_at")[:50]
     )
-    pending_users = (
-        User.objects.filter(is_active=False).order_by("date_joined")
-        if request.user.has_perm_code("users.edit") else []
-    )
     return render(request, "dashboard.html", {
         "nav":            "dashboard",
         "bookings":       rows,
@@ -132,7 +173,6 @@ def dashboard(request):
         "jira_type_filter": jira_type_filter,
         "date_from":      date_from,
         "date_to":        date_to,
-        "pending_users":  pending_users,
         "no_meeting_runs": no_meeting_runs,
         "sm_scoped":      sm_scoped,
         "sm_scope_email": sm_scope_email,
@@ -143,7 +183,6 @@ def dashboard(request):
 def dashboard_export(request):
     """Download the (filtered) bookings as an Excel workbook."""
     from apps.scheduler.services import filtered_bookings, bookings_workbook
-    # Mirror the dashboard's scrum-master scoping in the export.
     can_view_all   = request.user.has_perm_code("reports.view")
     show_all       = request.GET.get("all") == "1"
     sm_scope_email = ""

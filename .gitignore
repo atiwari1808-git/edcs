@@ -16,6 +16,7 @@ __pycache__/
 .venv/
 venv/
 env/
+.venv310/
 
 # Media uploads (user-generated content)
 media/

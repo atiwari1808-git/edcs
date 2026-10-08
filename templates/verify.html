@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}Verify Documents · Handover Scheduler{% endblock %}
 {% block content %}
-<h1><i class="bi bi-clipboard2-check-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Verify Documents</h1>
+<div class="guide-head">
+  <h1><i class="bi bi-clipboard2-check-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Verify Documents</h1>
+  <a href="/guide/" class="btn btn-secondary guide-dl"><i class="bi bi-life-preserver"></i> Help &amp; Guide</a>
+</div>
 <p>Select the tool, choose the automation type, enter the Customer Name and JIRA ID, and provide the Bitbucket link (required for In-House, Enable, and RPA).
 Documents and code are scanned automatically before you can schedule a handover call.</p>
 <div class="verify-layout">

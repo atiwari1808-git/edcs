@@ -1,36 +1,211 @@
-{% extends 'base.html' %}
-{% block title %}Assign Roles · Handover Scheduler{% endblock %}
+{% extends "base.html" %}
+{% block title %}Users & Roles — Handover Scheduler{% endblock %}
 {% block content %}
-<h1><i class="bi bi-person-check-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Assign Roles to Users</h1>
-<p>A user may hold multiple roles; their access is the union of all of them.</p>
-
-{% for u in users %}
-<form method="post" id="form-{{ u.id }}">{% csrf_token %}<input type="hidden" name="user_id" value="{{ u.id }}"></form>
-{% endfor %}
-
-<div class="panel" style="padding:6px 20px">
-  <table class="data-table">
-    <thead><tr><th>User</th><th>Roles</th><th></th></tr></thead>
-    <tbody>
-    {% for u in users %}
-      <tr>
-        <td><span class="pill-person"><i class="bi bi-person-fill"></i> {{ u.username }}</span>
-            {% if not u.is_active %}<span class="badge badge-ERROR" style="margin-left:6px">inactive</span>{% endif %}</td>
-        <td>
-          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
-            {% for r in all_roles %}
-            <label style="display:flex;align-items:center;gap:5px;font-size:.82rem;font-weight:600;cursor:pointer">
-              <input type="checkbox" name="roles" value="{{ r.id }}" form="form-{{ u.id }}" style="width:auto"
-                     {% if r in u.roles.all %}checked{% endif %}>
-              {{ r.name }}
-            </label>
-            {% endfor %}
-          </div>
-        </td>
-        <td><button type="submit" form="form-{{ u.id }}" class="btn btn-secondary btn-sm"><i class="bi bi-check2"></i> Save</button></td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+<div class="users-head">
+  <div>
+    <h1><i class="bi bi-people-fill" style="color:var(--indigo);margin-right:8px"></i>Users &amp; Roles</h1>
+    <p class="guide-sub">Activate new accounts, assign roles, and manage what each role can do — all in one place.</p>
+  </div>
 </div>
+
+<!-- Tab strip -->
+<div class="users-tabs" role="tablist">
+  <button class="utab active" data-tab="activations">
+    <i class="bi bi-person-check-fill"></i> Activations
+    {% if pending_users %}<span class="utab-dot">{{ pending_users|length }}</span>{% endif %}
+  </button>
+  <button class="utab" data-tab="users"><i class="bi bi-people"></i> Users &amp; roles</button>
+  <button class="utab" data-tab="roles"><i class="bi bi-shield-lock-fill"></i> Roles</button>
+</div>
+
+<!-- ============================ ACTIVATIONS ============================ -->
+<section class="utab-panel active" id="tab-activations">
+  <div class="panel pad">
+    <h2 class="usec-title"><i class="bi bi-person-check-fill"></i> Pending activations</h2>
+    {% if pending_users %}
+    <p class="d-sub">These self-registered accounts are waiting for approval before they can sign in. New users receive the <b>{{ default_role.name }}</b> role by default.</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>Username</th><th>Full name</th><th>Email</th><th>Registered</th><th>Default role</th><th class="d-nowrap">Action</th></tr>
+      </thead>
+      <tbody>
+        {% for u in pending_users %}
+        <tr>
+          <td><b>{{ u.username }}</b></td>
+          <td>{{ u.get_full_name|default:"—" }}</td>
+          <td class="d-sub">{{ u.email }}</td>
+          <td class="d-sub d-nowrap">{{ u.date_joined|date:"d M Y, H:i" }}</td>
+          <td>
+            {% for ur in u.user_roles.all %}<span class="badge badge-info">{{ ur.role.name }}</span> {% empty %}<span class="d-sub">—</span>{% endfor %}
+          </td>
+          <td class="d-nowrap">
+            {% if can_activate %}
+            <form method="post" action="{% url 'activate-user' u.id %}" style="display:inline">
+              {% csrf_token %}
+              <button class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i> Activate</button>
+            </form>
+            {% else %}
+            <span class="d-sub">No permission</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-check2-circle"></i><p>No accounts are waiting for activation.</p></div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ============================ USERS & ROLES ============================ -->
+<section class="utab-panel" id="tab-users">
+  <div class="panel pad">
+    <h2 class="usec-title"><i class="bi bi-people"></i> Active users</h2>
+    <p class="d-sub">Assign one or more roles to each user. A user's effective permissions are the union of all their roles.</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>User</th><th>Email</th><th>Roles</th><th class="d-nowrap">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td><b>{{ u.username }}</b>{% if u.is_superuser %} <span class="badge badge-warning">Superuser</span>{% endif %}<div class="d-sub">{{ u.get_full_name }}</div></td>
+          <td class="d-sub">{{ u.email }}</td>
+          <td>
+            {% for ur in u.user_roles.all %}<span class="badge badge-info">{{ ur.role.name }}</span> {% empty %}<span class="d-sub">No roles</span>{% endfor %}
+          </td>
+          <td class="d-nowrap">
+            {% if can_assign %}
+            <button class="btn btn-outline btn-sm" onclick="openRoleModal({{ u.id }}, '{{ u.username|escapejs }}')"><i class="bi bi-shield-plus"></i> Roles</button>
+            {% endif %}
+            {% if can_deactivate and not u.is_superuser and u != request.user %}
+            <form method="post" action="{% url 'deactivate-user' u.id %}" style="display:inline" onsubmit="return confirm('Deactivate {{ u.username|escapejs }}? They will no longer be able to sign in.');">
+              {% csrf_token %}
+              <button class="btn btn-danger btn-sm"><i class="bi bi-person-dash"></i> Deactivate</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================ ROLES ============================ -->
+<section class="utab-panel" id="tab-roles">
+  <!-- Default role -->
+  {% if can_set_default %}
+  <div class="panel pad">
+    <h2 class="usec-title"><i class="bi bi-star-fill"></i> Default role for new users</h2>
+    <p class="d-sub">Self-registered accounts automatically receive this role once activated.</p>
+    <form method="post" action="{% url 'set-default-role' %}" class="default-role-form">
+      {% csrf_token %}
+      <select name="default_role" class="form-select">
+        {% for r in all_roles %}
+        <option value="{{ r.name }}" {% if default_role and r.name == default_role.name %}selected{% endif %}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-primary"><i class="bi bi-save"></i> Save default</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="panel pad">
+    <div class="usec-headrow">
+      <h2 class="usec-title"><i class="bi bi-shield-lock-fill"></i> Roles &amp; permissions</h2>
+      {% if can_create_roles %}
+      <a href="{% url 'role-create' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> New role</a>
+      {% endif %}
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Role</th><th>Description</th><th>Permissions</th><th>Daily caps</th><th class="d-nowrap">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for r in all_roles %}
+        <tr>
+          <td><b>{{ r.name }}</b>{% if r.is_system %} <span class="badge badge-neutral">starter</span>{% endif %}</td>
+          <td class="d-sub">{{ r.description|default:"—" }}</td>
+          <td><span class="badge badge-info">{{ r.permissions.count }} permission{{ r.permissions.count|pluralize }}</span></td>
+          <td class="d-sub">
+            M: {% if r.max_meetings_per_day is None %}∞{% else %}{{ r.max_meetings_per_day }}{% endif %} ·
+            NMN: {% if r.max_nmn_verifications_per_day is None %}∞{% else %}{{ r.max_nmn_verifications_per_day }}{% endif %}
+          </td>
+          <td class="d-nowrap">
+            {% if can_manage_roles %}
+            <a href="{% url 'role-edit' r.id %}" class="btn btn-outline btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+            {% endif %}
+            {% if can_create_roles %}
+            <form method="post" action="{% url 'role-clone' r.id %}" style="display:inline">{% csrf_token %}<button class="btn btn-outline btn-sm"><i class="bi bi-files"></i> Clone</button></form>
+            {% endif %}
+            {% if can_delete_roles and not r.is_system %}
+            <form method="post" action="{% url 'role-delete' r.id %}" style="display:inline" onsubmit="return confirm('Delete role {{ r.name|escapejs }}?');">{% csrf_token %}<button class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button></form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Role-assignment modal -->
+{% if can_assign %}
+<div class="modal fade" id="roleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{% url 'user-roles' %}">
+      {% csrf_token %}
+      <input type="hidden" name="user_id" id="rm-user-id">
+      <div class="modal-header">
+        <h5 class="modal-title">Assign roles — <span id="rm-username"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="rm-roles">
+        {% for r in all_roles %}
+        <label class="rm-role-row">
+          <input type="checkbox" name="roles" value="{{ r.id }}" data-role-id="{{ r.id }}">
+          <span><b>{{ r.name }}</b><span class="d-sub"> — {{ r.description|default:"" }}</span></span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save roles</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  // Tab switching
+  document.querySelectorAll('.utab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var t = btn.dataset.tab;
+      document.querySelectorAll('.utab').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.utab-panel').forEach(p =>
+        p.classList.toggle('active', p.id === 'tab-' + t));
+    });
+  });
+
+  // Per-user current roles for the modal (id -> [roleId,...])
+  var USER_ROLES = {
+    {% for u in users %}"{{ u.id }}": [{% for ur in u.user_roles.all %}{{ ur.role.id }}{% if not forloop.last %},{% endif %}{% endfor %}]{% if not forloop.last %},{% endif %}{% endfor %}
+  };
+
+  function openRoleModal(userId, username){
+    document.getElementById('rm-user-id').value = userId;
+    document.getElementById('rm-username').textContent = username;
+    var current = USER_ROLES[String(userId)] || [];
+    document.querySelectorAll('#rm-roles input[type=checkbox]').forEach(function(cb){
+      cb.checked = current.indexOf(parseInt(cb.dataset.roleId, 10)) !== -1;
+    });
+    var el = document.getElementById('roleModal');
+    // Reparent to <body> so no ancestor stacking context can trap the backdrop.
+    if (el.parentElement !== document.body) document.body.appendChild(el);
+    new bootstrap.Modal(el).show();
+  }
+</script>
 {% endblock %}

@@ -1,12 +1,12 @@
 """Booking queries, stats, filters, and Excel export for the dashboard."""
 import io
 from datetime import date
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Concat
 from django.contrib.auth import get_user_model
 from .models import Meeting
 
 ACTIVE = ["PENDING", "REQUESTED", "CONFIRMED"]
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -21,19 +21,48 @@ def _display_status(m: Meeting, today=None) -> str:
     return "completed" if d < today else "scheduled"
 
 
-def _resolve_scrum_master_names(emails):
-    """Map a set of scrum-master emails to a display name from the Users DB.
-    Falls back to the raw email when no matching user exists."""
+def _resolve_scrum_master_usernames(emails):
+    """Map a set of scrum-master emails to the user's *username* (the user ID),
+    matching how the Organizer column is displayed.  Falls back to the local
+    part of the e-mail, then the raw e-mail, when no matching user exists."""
     emails = {e.lower() for e in emails if e}
     if not emails:
         return {}
     User = get_user_model()
     name_map = {}
     for u in User.objects.filter(email__in=emails):
-        full = (u.get_full_name() or "").strip()
-        name_map[u.email.lower()] = full or u.username
-    # anything not found falls back to the email itself
-    return {e: name_map.get(e, e) for e in emails}
+        name_map[u.email.lower()] = (u.username or "").strip() or u.email
+    # anything not found falls back to the e-mail local part, then the e-mail
+    return {e: name_map.get(e, (e.split("@")[0] if "@" in e else e)) for e in emails}
+
+
+def _emails_matching_name(q):
+    """Return the set of user e-mails whose name / username / e-mail matches the
+    free-text query `q`.
+
+    The dashboard shows each Scrum Master by their *user ID* (username), and
+    the Organizer the same way, but attendees are stored only by e-mail — so a
+    search must be translated into the matching e-mail(s) before it can hit the
+    attendee rows.  We match on the concatenated first+last name, each name
+    part individually, the username (user ID) and the e-mail, so searching by
+    name, e-mail, or user ID all resolve correctly."""
+    q = (q or "").strip()
+    if not q:
+        return []
+    User = get_user_model()
+    qs = (
+        User.objects
+        .annotate(_full=Concat("first_name", Value(" "), "last_name"))
+        .filter(
+            Q(_full__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(last_name__icontains=q) |
+            Q(username__icontains=q) |
+            Q(email__icontains=q)
+        )
+        .values_list("email", flat=True)
+    )
+    return [e for e in qs if e]
 
 
 # ---------------------------------------------------------------------------
@@ -54,12 +83,23 @@ def filtered_bookings(q="", tool="", status="", date_from="", date_to="",
                       jira_type="", sm_scope_email=""):
     rows = all_bookings()
     if q:
-        rows = rows.filter(
-            Q(organizer__username__icontains=q) | Q(tool_key__icontains=q) |
-            Q(subject__icontains=q) | Q(validation_run__jira_id__icontains=q) |
+        text_q = (
+            Q(organizer__username__icontains=q) |
+            Q(organizer__first_name__icontains=q) |
+            Q(organizer__last_name__icontains=q) |
+            Q(tool_key__icontains=q) |
+            Q(subject__icontains=q) |
+            Q(validation_run__jira_id__icontains=q) |
             Q(validation_run__parent_jira_id__icontains=q) |
+            Q(validation_run__automation_name__icontains=q) |
             Q(attendees__email__icontains=q)
-        ).distinct()
+        )
+        # Also match Scrum Masters / attendees by the display NAME shown on the
+        # dashboard, not just their e-mail address.
+        name_emails = _emails_matching_name(q)
+        if name_emails:
+            text_q |= Q(attendees__email__in=name_emails)
+        rows = rows.filter(text_q).distinct()
     if tool:
         rows = rows.filter(tool_key=tool)
     if jira_type:
@@ -72,17 +112,14 @@ def filtered_bookings(q="", tool="", status="", date_from="", date_to="",
         rows = rows.filter(booking_date__gte=date_from)
     if date_to:
         rows = rows.filter(booking_date__lte=date_to)
-
     rows = list(rows)
-
     # Bulk-resolve all scrum-master emails to names in a single query.
     all_sm_emails = set()
     for m in rows:
         for a in m.attendees.all():
             if a.type == "SCRUM_MASTER":
                 all_sm_emails.add(a.email.lower())
-    sm_names = _resolve_scrum_master_names(all_sm_emails)
-
+    sm_usernames = _resolve_scrum_master_usernames(all_sm_emails)
     out = []
     for m in rows:
         disp = _display_status(m)
@@ -92,7 +129,15 @@ def filtered_bookings(q="", tool="", status="", date_from="", date_to="",
         at = vr.automation_type if vr else None
         jt = vr.jira_type if vr else None
         scrum_masters = [
-            {"email": a.email, "name": sm_names.get(a.email.lower(), a.email)}
+            {
+                "email": a.email,
+                # `username` = the user ID shown in the column; `name` kept as
+                # an alias so any other consumer keeps working.
+                "username": sm_usernames.get(a.email.lower(),
+                                             a.email.split("@")[0] if "@" in a.email else a.email),
+                "name": sm_usernames.get(a.email.lower(),
+                                         a.email.split("@")[0] if "@" in a.email else a.email),
+            }
             for a in m.attendees.all() if a.type == "SCRUM_MASTER"
         ]
         out.append({
@@ -175,6 +220,7 @@ def _status_colour(status: str) -> str:
         return _CLR["fail_red"]
     return _CLR["type_other"]
 
+
 def bookings_workbook(rows) -> io.BytesIO:
     """Build a styled two-sheet Excel workbook with ALL handover details."""
     from openpyxl import Workbook
@@ -222,12 +268,11 @@ def bookings_workbook(rows) -> io.BytesIO:
     _style_header_row(ws1)
     AT_COL_1, STATUS_COL_1 = 3, 16
     CENTER_1 = {2, 3, 4, 6, 7, 8, 13, 14, 15, 16}
-
     for idx, r in enumerate(rows, start=2):
         m    = r["m"]
         att  = list(m.attendees.all())
         pick = lambda k: ", ".join(a.email for a in att if a.type == k)
-        sm_names = ", ".join(s["name"] for s in r.get("scrum_masters", [])) or pick("SCRUM_MASTER")
+        sm_names = ", ".join(s.get("username") or s.get("name", "") for s in r.get("scrum_masters", [])) or pick("SCRUM_MASTER")
         at_key  = r.get("automation_type_key", "")
         at_disp = r.get("automation_type_display", "")
         disp_st = r["display_status"]
@@ -275,7 +320,6 @@ def bookings_workbook(rows) -> io.BytesIO:
     _style_header_row(ws2)
     AT_COL_2, STATUS_COL_2 = 3, 10
     CENTER_2 = {2, 3, 4, 6, 7, 8, 10, 12, 13}
-
     no_meeting_runs = (
         ValidationRun.objects
         .filter(automation_type__requires_scheduling=False)

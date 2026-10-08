@@ -46,6 +46,7 @@ TEMPLATES = [{
         "django.contrib.auth.context_processors.auth",
         "django.contrib.messages.context_processors.messages",
         "apps.rbac.context_processors.permissions",
+        "apps.rbac.context_processors.pending_activations",
     ]},
 }]
 
@@ -53,10 +54,10 @@ if os.getenv("DB_ENGINE", "sqlite") == "postgres":
     DATABASES = {"default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.getenv("DB_NAME", "edcs_gate"),
-        "USER": os.getenv("DB_USER", "edcs"),
+        "USER": os.getenv("DB_USER", "edcs_ho"),
         "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "db"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DB_PORT", "5433"),
         "CONN_MAX_AGE": 60,
     }}
 else:

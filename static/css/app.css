@@ -123,8 +123,9 @@ html[data-theme="dark"] .theme-toggle .bi-sun-fill{display:block}
 .sidebar a:hover{background:var(--indigo-soft);color:var(--indigo-dark)}
 .sidebar a.active{background:var(--brand-grad);color:#fff}
 .content-area{flex:1;min-width:0}
-.container{max-width:1600px;margin:0 auto;padding:1.9rem 2.6rem 3.5rem;animation:fade-up .4s var(--ease) both}
+.container{max-width:1600px;margin:0 auto;padding:1.9rem 2.6rem 3.5rem;animation:fade-in .4s var(--ease) both}
 @keyframes fade-up{from{opacity:0;transform:translateY(10px)}}
+@keyframes fade-in{from{opacity:0}}
 
 /* ---- 5. Panels / cards --------------------------------------------------- */
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);
@@ -225,6 +226,12 @@ select option{background:var(--surface);color:var(--text)}
 .stat-icon-badge.acc-purple{background:var(--purple-bg);color:var(--purple-text)}
 .stat-card h3{margin:0;font-size:1.7rem;font-weight:800;color:var(--text);line-height:1;letter-spacing:-.02em}
 .stat-card span{font-size:.72rem;color:var(--text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+/* Clickable stat cards act as quick filters */
+.stat-link{text-decoration:none;cursor:pointer}
+.stat-link:hover .stat-icon-badge{transform:scale(1.06)}
+.stat-link .stat-icon-badge{transition:transform var(--dur) var(--ease)}
+.stat-card.stat-active{border-color:var(--indigo);box-shadow:0 0 0 2px var(--indigo-soft),var(--shadow-card-hover)}
+.stat-card.stat-active::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--indigo)}
 .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
 .table-toolbar{display:flex;justify-content:space-between;align-items:center;margin:1.2rem 0 .8rem;flex-wrap:wrap;gap:.6rem}
 
@@ -369,3 +376,78 @@ html[data-theme="dark"] .theme-switch .bi-sun-fill{display:block}
 .d-sub{font-size:.72rem;color:var(--text-tertiary);font-weight:600}
 .d-nowrap{white-space:nowrap}
 
+
+/* ============================================================
+   User Guide page
+   ============================================================ */
+.guide-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+.guide-sub{color:var(--text-secondary);max-width:70ch;margin:4px 0 0}
+.guide-dl{white-space:nowrap;flex-shrink:0}
+.guide-toc{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:22px}
+.guide-toc strong{color:var(--text-secondary);font-size:.85rem;text-transform:uppercase;letter-spacing:.4px}
+.guide-toc-links{display:flex;gap:10px;flex-wrap:wrap}
+.guide-toc-links a{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
+  background:var(--surface-alt);color:var(--text-primary);text-decoration:none;font-size:.85rem;
+  border:1px solid var(--border);transition:background .15s,color .15s,border-color .15s}
+.guide-toc-links a:hover{background:var(--brand-grad);color:#fff;border-color:transparent}
+.guide-list{margin:8px 0 8px 2px;padding-left:18px;line-height:1.7}
+.guide-list li{margin:2px 0}
+.guide-steps{margin:8px 0 8px 2px;padding-left:20px;line-height:1.8}
+.guide-steps li{margin:3px 0}
+.guide-note{display:flex;align-items:flex-start;gap:8px;margin-top:12px;padding:10px 14px;border-radius:10px;
+  background:var(--info-bg);color:var(--primary-active);border-left:4px solid var(--indigo);font-size:.9rem}
+.guide-note i{margin-top:2px}
+code{font-family:Consolas,Menlo,monospace;background:var(--surface-alt-2);color:var(--text-primary);
+  padding:1px 6px;border-radius:5px;font-size:.85em}
+
+/* ---- 20. Users hub + notification dot + extra badges/buttons ------------- */
+/* Semantic badge aliases used by the Users hub & Guide */
+.badge-success{background:var(--green-bg);color:var(--green-text)}
+.badge-danger{background:var(--red-bg);color:var(--red-text)}
+.badge-warning{background:var(--amber-bg);color:var(--amber-text)}
+.badge-info{background:var(--indigo-soft);color:var(--indigo)}
+.badge-neutral{background:var(--surface-alt);color:var(--text-secondary)}
+
+/* Outline button + native select helper */
+.btn-outline{background:var(--surface);border:1.5px solid var(--border-strong);color:var(--text)}
+.btn-outline:hover{background:var(--surface-alt);border-color:var(--indigo-border);color:var(--indigo-dark)}
+.form-select{width:auto;min-width:200px;display:inline-block}
+
+/* Navbar notification dot on the Users link */
+.nav-dot{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
+  padding:0 5px;margin-left:6px;border-radius:999px;background:var(--red);color:#fff;
+  font-size:.68rem;font-weight:800;line-height:1;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+
+/* Users hub head + tabs */
+.users-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.users-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.utab{display:inline-flex;align-items:center;gap:.45rem;padding:.55rem 1.1rem;border-radius:var(--radius-full);
+  border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);
+  font:700 .82rem var(--font-body);cursor:pointer;transition:all var(--dur) var(--ease)}
+.utab:hover{border-color:var(--indigo-border);color:var(--indigo-dark);transform:translateY(-1px)}
+.utab.active{background:var(--brand-grad);color:#fff;border-color:transparent;box-shadow:0 3px 12px rgba(79,70,229,.28)}
+.utab-dot{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;
+  border-radius:999px;background:var(--red);color:#fff;font-size:.68rem;font-weight:800;line-height:1}
+.utab.active .utab-dot{background:rgba(255,255,255,.28)}
+.utab-panel{display:none;animation:fade-in .3s var(--ease)}
+.utab-panel.active{display:block}
+.utab-panel .panel{margin-bottom:18px}
+
+/* Section titles inside the hub */
+.usec-title{display:flex;align-items:center;gap:.5rem;font-size:.95rem}
+.usec-title .bi{color:var(--indigo)}
+.usec-headrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.default-role-form{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
+/* Role-assignment modal rows */
+.rm-role-row{display:flex;align-items:flex-start;gap:.6rem;padding:.6rem .7rem;border-radius:var(--radius-sm);
+  cursor:pointer;transition:background var(--dur) var(--ease)}
+.rm-role-row:hover{background:var(--surface-alt)}
+.rm-role-row input{width:auto;margin-top:3px;flex-shrink:0}
+
+/* ---- 21. Guide additions ------------------------------------------------ */
+.guide-inline-note{background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-box);
+  padding:.7rem .9rem;font-size:.84rem;color:var(--text-secondary);margin:10px 0}
+.guide-note-warn{background:var(--banner-warn-bg);color:var(--banner-warn-tx)}
+.guide-doc-table code{font-size:.8rem}
+.guide-doc-table .d-sub{margin-top:3px}

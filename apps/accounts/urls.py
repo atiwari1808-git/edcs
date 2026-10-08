@@ -7,5 +7,6 @@ urlpatterns = [
     path("logout/", views.LogoutView.as_view(), name="logout"),
     path("register/", views.register, name="register"),
     path("accounts/<int:user_id>/activate/", views.activate_user, name="activate-user"),
+    path("accounts/<int:user_id>/deactivate/", views.deactivate_user, name="deactivate-user"),
     path("dashboard/export/", views.dashboard_export, name="dashboard-export"),
 ]

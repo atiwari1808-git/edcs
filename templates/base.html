@@ -35,9 +35,10 @@
           <i class="bi bi-bar-chart-fill"></i> Dashboard
         </a>
       {% endif %}
-      {% if "roles.view" in perms_set %}
-        <a href="/manage/roles/" class="pill navlink {% if nav == 'roles' %}active{% endif %}">
-          <i class="bi bi-shield-lock-fill"></i> Roles
+      {% if "users.view" in perms_set or "roles.view" in perms_set %}
+        <a href="/manage/users/" class="pill navlink {% if nav == 'users' or nav == 'roles' %}active{% endif %}">
+          <i class="bi bi-people-fill"></i> Users
+          {% if pending_activation_count %}<span class="nav-dot" title="{{ pending_activation_count }} account(s) awaiting activation">{{ pending_activation_count }}</span>{% endif %}
         </a>
       {% endif %}
       {% if user.is_staff %}
@@ -45,6 +46,9 @@
           <i class="bi bi-gear-fill"></i> Admin
         </a>
       {% endif %}
+      <a href="/guide/" class="pill navlink {% if nav == 'guide' %}active{% endif %}">
+        <i class="bi bi-life-preserver"></i> Guide
+      </a>
       <button type="button" class="theme-switch" id="themeSwitchNav" role="switch" aria-label="Toggle light / dark mode" title="Toggle light / dark mode">
         <span class="ts-track"><span class="ts-knob"><i class="bi bi-moon-stars-fill"></i><i class="bi bi-sun-fill"></i></span></span>
       </button>

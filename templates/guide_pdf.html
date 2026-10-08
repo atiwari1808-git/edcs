@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.6cm; background-color:#ffffff; }
+  html, body { background-color:#ffffff; color:#111111;
+    font-family: Helvetica, Arial, sans-serif; font-size: 10.5px; line-height: 1.45; }
+  h1 { font-size: 19px; color:#012970; margin:0 0 2px 0; }
+  h2 { font-size: 13px; color:#012970; margin:16px 0 6px 0;
+       border-bottom:2px solid #4f46e5; padding-bottom:3px; }
+  .sub { color:#444444; font-size:10px; margin:0 0 10px 0; }
+  p { margin:5px 0; }
+  code { font-family: "Courier New", monospace; background-color:#f0f2f7;
+         color:#0c2340; padding:1px 4px; }
+  ul { margin:5px 0 5px 0; padding-left:16px; }
+  li { margin:3px 0; }
+  table { width:100%; border-collapse:collapse; margin:8px 0; background-color:#ffffff; }
+  th { background-color:#e9edf2; color:#0c2340; text-align:left;
+       padding:5px 7px; border:1px solid #cdd4de; font-size:10px; }
+  td { padding:5px 7px; border:1px solid #dde2ea; background-color:#ffffff;
+       vertical-align:top; }
+  .note { background-color:#eef2ff; border:1px solid #c7d0f5; color:#20306e;
+          padding:7px 9px; margin:8px 0; }
+  .note-warn { background-color:#fff6e6; border:1px solid #f0d49a; color:#7a4d05; }
+  .sub-line { color:#555555; font-size:9px; }
+  .req { color:#b71c1c; font-weight:bold; }
+  .opt { color:#555555; }
+  .foot { margin-top:18px; color:#888888; font-size:9px; text-align:center; }
+</style>
+</head>
+<body>
+  <h1>EDCS-Gate — User Guide</h1>
+  <p class="sub">How to prepare your ERIDOC documents and Bitbucket repository, and run a verification successfully.</p>
+
+  <h2>1. ERIDOC folder &amp; documents</h2>
+  <p>Create one ERIDOC project folder named after your <b>JIRA ID</b> (e.g. <code>ASB-10728</code>) and upload all mandatory documents into it before you verify.</p>
+  <ul>
+    <li>The folder name must contain the JIRA ID exactly as typed on the Verify page.</li>
+    <li>Each document filename should start with the JIRA ID, e.g. <code>ASB-10728_TEST_REPORT.pdf</code>.</li>
+    <li>The scanner checks every mandatory document is present, non-blank and readable.</li>
+  </ul>
+  <p>Accepted formats: <b>.pdf</b> (preferred, selectable text), <b>.docx</b>, <b>.xlsx</b> and <b>.zip</b>. A <code>.zip</code> is fully accepted — its JIRA-ID naming is still checked and its contents validated where feasible.</p>
+  <div class="note">If the tool marks the ERIDOC Folder Path as <b>required</b>, paste the folder link (containing <code>locateId=</code>) or a path starting with <code>/</code>. A wrong or empty link is reported as an error — it will not silently fall back to a JIRA-name search.</div>
+
+  <h2>2. Mandatory documents checklist</h2>
+  <p>All of these must be present (and non-blank) for the document check to pass.</p>
+  <table>
+    <thead>
+      <tr><th width="34%">Document</th><th width="26%">Key / filename</th><th width="24%">Formats</th><th width="16%">Required</th></tr>
+    </thead>
+    <tbody>
+      {% for d in mandatory_docs %}
+      <tr>
+        <td><b>{{ d.name }}</b>{% if d.description %}<div class="sub-line">{{ d.description }}</div>{% endif %}</td>
+        <td><code>{{ d.key }}</code></td>
+        <td>{% if d.formats %}{% for f in d.formats %}<code>{{ f }}</code> {% endfor %}{% else %}<span class="sub-line">Any accepted format</span>{% endif %}</td>
+        <td>{% if d.required %}<span class="req">Required</span>{% else %}<span class="opt">Optional</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if docs_source == "fallback" %}
+  <div class="note note-warn">This is a typical example set — the live checklist could not be read. The authoritative list is configured in <code>config/mandatory_documents.yaml</code>.</div>
+  {% else %}
+  <div class="note">This list is read live from the scanner configuration, so it matches exactly what the verification enforces.</div>
+  {% endif %}
+
+  <h2>3. Bitbucket repository</h2>
+  <p>For code-scanning tools (In-House, Enable, RPA) the repository name must include the JIRA ID.</p>
+  <ul>
+    <li>Repo name pattern: <code>&lt;jira-id&gt;_&lt;short-description&gt;</code> — e.g. <code>asb-10728_ran-trx-automation</code>.</li>
+    <li>Paste the full repo URL; it must exist, be reachable, and contain code (not empty).</li>
+    <li><b>Secrets/passwords</b> → Move to Database/.env injected at runtime; rotate the exposed value.</li>
+    <li><b>IP addresses</b> → Move IPs to configuration/database or static sheet; never hardcode.</li>
+  </ul>
+
+  <h2>4. Running a verification</h2>
+  <ul>
+    <li>Open <b>Verify</b>, pick the <b>Tool</b> (extra fields appear only when needed).</li>
+    <li>Choose <b>JIRA Type</b> and <b>Automation Type</b> (doc-only types skip scheduling).</li>
+    <li>Enter Customer Name, Automation Name, JIRA ID, and the Bitbucket / ERIDOC inputs if shown.</li>
+    <li>Click <b>Run Verification</b> (usually 1–5 minutes).</li>
+    <li>On PASS you can schedule the handover (meeting-needed types). On FAIL/ERROR, open the report to see what to fix.</li>
+  </ul>
+
+  <h2>5. What to put in each box</h2>
+  <table>
+    <thead><tr><th width="26%">Field</th><th width="36%">Example</th><th width="38%">Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Tool</td><td>In-House</td><td>Determines which scanners run.</td></tr>
+      <tr><td>JIRA Type</td><td>Story / Enhancement</td><td>Enhancement asks for a Parent JIRA ID.</td></tr>
+      <tr><td>Automation Type</td><td>New Automation</td><td>"No meeting needed" types skip scheduling.</td></tr>
+      <tr><td>Customer Name</td><td>Bharti Airtel</td><td>Free text.</td></tr>
+      <tr><td>Automation Name</td><td>ACE_RAN_ERICSSON_BL_TRX</td><td>Your automation's name.</td></tr>
+      <tr><td>JIRA ID</td><td>ASB-10728</td><td>Format: LETTERS-NUMBER.</td></tr>
+      <tr><td>Bitbucket Link</td><td>https://bitbucket…/asb-10728_trx.git</td><td>Must include the JIRA ID.</td></tr>
+      <tr><td>ERIDOC Folder Path</td><td>https://eridoc…?locateId=0b004cffd9ad177d</td><td>Link with locateId, or a path starting with "/".</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6. Understanding your result</h2>
+  <ul>
+    <li><b>PASS</b> — every check passed; you get the report by email and can schedule (meeting-needed types).</li>
+    <li><b>FAIL</b> — a real problem was found; the report lists what failed and a suggested fix per item.</li>
+    <li><b>ERROR / could not complete</b> — the scan couldn't finish (wrong ERIDOC path, unreachable/empty repo, outage). Fix the input in the message and re-run. ERROR never counts as a pass.</li>
+  </ul>
+  <p>Every verification emails a full PDF report attachment with the per-check breakdown.</p>
+
+  <div class="foot">EDCS-Gate — Handover Scheduler · User Guide</div>
+</body>
+</html>

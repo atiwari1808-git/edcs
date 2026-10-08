@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}User Guide — Handover Scheduler{% endblock %}
+{% block content %}
+<div class="guide-head">
+  <div>
+    <h1><i class="bi bi-life-preserver" style="color:var(--indigo);margin-right:8px"></i>EDCS-Gate User Guide</h1>
+    <p class="guide-sub">Everything you need to prepare your ERIDOC documents and Bitbucket repository, and to run a verification successfully the first time.</p>
+  </div>
+  <a href="{% url 'guide_pdf' %}" class="btn btn-primary guide-dl">
+    <i class="bi bi-file-earmark-arrow-down-fill"></i> Download PDF
+  </a>
+</div>
+
+<div class="guide-toc panel pad">
+  <strong>On this page</strong>
+  <div class="guide-toc-links">
+    <a href="#eridoc"><i class="bi bi-folder2-open"></i> ERIDOC documents</a>
+    <a href="#mandatory"><i class="bi bi-list-check"></i> Mandatory documents</a>
+    <a href="#bitbucket"><i class="bi bi-git"></i> Bitbucket repository</a>
+    <a href="#run"><i class="bi bi-play-circle"></i> Running a verification</a>
+    <a href="#fields"><i class="bi bi-input-cursor-text"></i> Field examples</a>
+    <a href="#results"><i class="bi bi-clipboard2-check"></i> Understanding results</a>
+  </div>
+</div>
+
+<!-- ERIDOC -->
+<div class="section-block" id="eridoc">
+  <h2><i class="bi bi-folder2-open" style="color:var(--indigo);margin-right:6px"></i>1. ERIDOC folder &amp; documents</h2>
+  <div class="panel pad">
+    <p>Create one ERIDOC project folder named after your <b>JIRA ID</b> (e.g. <code>ASB-10728</code>) and upload all mandatory documents into it before you verify.</p>
+    <ul class="guide-list">
+      <li><b>Folder name</b> must contain the JIRA ID exactly as you type it on the Verify page.</li>
+      <li>Each document filename should start with the JIRA ID, e.g. <code>ASB-10728_TEST_REPORT.pdf</code>.</li>
+      <li>The scanner checks that every mandatory document is <b>present, non-blank, and readable</b>.</li>
+    </ul>
+    <p class="guide-inline-note">Accepted file formats are <b>.pdf</b> (preferred, with selectable text — not scanned images), <b>.docx</b>, <b>.xlsx</b> and <b>.zip</b> — a <code>.zip</code> is fully accepted (its JIRA-ID naming is still checked and its contents validated where feasible; the old "unsupported content" warning is suppressed).</p>
+    <div class="guide-note">
+      <i class="bi bi-info-circle-fill"></i>
+      If your tool marks the <b>ERIDOC Folder Path as required</b>, you must paste the folder link (containing <code>locateId=…</code>) or a path starting with <code>/</code>. A wrong or empty link is now reported as an error — it will not silently fall back to a JIRA-name search.
+    </div>
+  </div>
+</div>
+
+<!-- Mandatory documents (LIVE from the scanner checklist) -->
+<div class="section-block" id="mandatory">
+  <h2><i class="bi bi-list-check" style="color:var(--indigo);margin-right:6px"></i>2. Mandatory documents checklist</h2>
+  <div class="panel pad">
+    <p>These are the documents the scanner expects to find in your ERIDOC folder. All of them must be present (and non-blank) for the document check to pass.</p>
+    <table class="data-table guide-doc-table">
+      <thead>
+        <tr><th>Document</th><th>Key / filename</th><th>Accepted formats</th><th>Required</th></tr>
+      </thead>
+      <tbody>
+        {% for d in mandatory_docs %}
+        <tr>
+          <td>
+            <b>{{ d.name }}</b>
+            {% if d.description %}<div class="d-sub">{{ d.description }}</div>{% endif %}
+          </td>
+          <td><code>{{ d.key }}</code></td>
+          <td>
+            {% if d.formats %}
+              {% for f in d.formats %}<code>{{ f }}</code>{% if not forloop.last %} {% endif %}{% endfor %}
+            {% else %}<span class="d-sub">Any accepted format</span>{% endif %}
+          </td>
+          <td>
+            {% if d.required %}<span class="badge badge-danger">Required</span>
+            {% else %}<span class="badge badge-neutral">Optional</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if docs_source == "fallback" %}
+    <div class="guide-note guide-note-warn">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      This is a typical example set — the live checklist could not be read. The authoritative list is configured in <code>config/mandatory_documents.yaml</code>; ask your administrator if unsure.
+    </div>
+    {% else %}
+    <div class="guide-note">
+      <i class="bi bi-check-circle-fill"></i>
+      This list is read live from the scanner's configuration, so it always matches exactly what the verification enforces.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Bitbucket -->
+<div class="section-block" id="bitbucket">
+  <h2><i class="bi bi-git" style="color:var(--indigo);margin-right:6px"></i>3. Bitbucket repository</h2>
+  <div class="panel pad">
+    <p>For tools that scan code (In-House, Enable, RPA), the repository name must include the <b>JIRA ID</b>.</p>
+    <ul class="guide-list">
+      <li><b>Repo name</b> pattern: <code>&lt;jira-id&gt;_&lt;short-description&gt;</code> — e.g. <code>asb-10728_ran-trx-automation</code>.</li>
+      <li>Paste the full repository URL, e.g. <code>https://bitbucket.internal.ericsson.com/scm/proj/asb-10728_ran-trx-automation.git</code>.</li>
+      <li>The repo must exist, be reachable by EDCS-Gate, and contain code (not empty).</li>
+    </ul>
+    <p>The code scanner flags hardcoded <b>secrets/passwords</b> and <b>IP addresses</b>. Suggested fixes:</p>
+    <ul class="guide-list">
+      <li><b>Secrets/passwords</b> → Move to Database/.env injected at runtime; rotate the exposed value.</li>
+      <li><b>IP addresses</b> → Move IPs to configuration/database or static sheet; never hardcode.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Run -->
+<div class="section-block" id="run">
+  <h2><i class="bi bi-play-circle" style="color:var(--indigo);margin-right:6px"></i>4. Running a verification</h2>
+  <div class="panel pad">
+    <ol class="guide-steps">
+      <li>Open <a href="/verify/">Verify</a> from the top navigation.</li>
+      <li>Select the <b>Tool</b>. Extra fields (Bitbucket link, ERIDOC path) appear only when that tool needs them.</li>
+      <li>Choose the <b>JIRA Type</b> and <b>Automation Type</b>. Types marked "no meeting needed" only run document verification.</li>
+      <li>Enter <b>Customer Name</b>, <b>Automation Name</b> and the <b>JIRA ID</b>.</li>
+      <li>Provide the <b>Bitbucket Link</b> and/or <b>ERIDOC Folder Path</b> if shown.</li>
+      <li>Click <b>Run Verification</b>. Scanning usually takes 1–5 minutes.</li>
+      <li>On <b>PASS</b> you can continue to the Scheduler (for meeting-needed types). On <b>FAIL</b> or <b>ERROR</b>, open the report to see exactly what to fix.</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Field examples -->
+<div class="section-block" id="fields">
+  <h2><i class="bi bi-input-cursor-text" style="color:var(--indigo);margin-right:6px"></i>5. What to put in each box</h2>
+  <div class="panel pad">
+    <table class="data-table">
+      <thead><tr><th>Field</th><th>Example</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Tool</td><td>In-House</td><td>Determines which scanners run.</td></tr>
+        <tr><td>JIRA Type</td><td>Story / Enhancement</td><td>Enhancement asks for a Parent JIRA ID.</td></tr>
+        <tr><td>Automation Type</td><td>New Automation</td><td>"No meeting needed" types skip scheduling.</td></tr>
+        <tr><td>Customer Name</td><td>Bharti Airtel</td><td>Free text.</td></tr>
+        <tr><td>Automation Name</td><td>ACE_RAN_ERICSSON_BL_TRX</td><td>Your automation's name.</td></tr>
+        <tr><td>JIRA ID</td><td>ASB-10728</td><td>Format: LETTERS-NUMBER.</td></tr>
+        <tr><td>Bitbucket Link</td><td>https://bitbucket…/asb-10728_trx.git</td><td>Must include the JIRA ID.</td></tr>
+        <tr><td>ERIDOC Folder Path</td><td>https://eridoc…?locateId=0b004cffd9ad177d</td><td>Link with locateId, or a path starting with "/".</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Understanding results -->
+<div class="section-block" id="results">
+  <h2><i class="bi bi-clipboard2-check" style="color:var(--indigo);margin-right:6px"></i>6. Understanding your result</h2>
+  <div class="panel pad">
+    <ul class="guide-list">
+      <li><span class="badge badge-success">PASS</span> Every check passed. You'll receive the report by email; meeting-needed types can proceed to schedule the handover call.</li>
+      <li><span class="badge badge-danger">FAIL</span> A real problem was found (missing/blank document, hardcoded secret or IP, low compliance score). Open the report — each item lists <b>what failed</b> and a <b>suggested fix</b>.</li>
+      <li><span class="badge badge-warning">ERROR / could not complete</span> The scan itself couldn't finish — usually a wrong ERIDOC path/link, an unreachable or empty Bitbucket repo, or a service outage. Fix the input shown in the message and re-run. An ERROR never counts as a pass, so you can't schedule off an incomplete scan.</li>
+    </ul>
+    <div class="guide-note">
+      <i class="bi bi-envelope-fill"></i>
+      Every verification emails you a full PDF report attachment with the per-check breakdown, so you always have a shareable record of what passed or failed and why.
+    </div>
+  </div>
+</div>
+{% endblock %}

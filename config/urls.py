@@ -9,6 +9,7 @@ urlpatterns = [
     path("", include("apps.validation.urls")),
     path("", include("apps.scheduler.urls")),
     path("", include("apps.rbac.urls")),
+    path("", include("apps.guide.urls")),
     path("auth/graph/", include("apps.msgraph.urls")),
 ]
 if settings.DEBUG:
