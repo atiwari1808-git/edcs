@@ -21,4 +21,8 @@ app.conf.beat_schedule = {
         "task": "apps.scheduler.followup_tasks.dispatch_handover_followups",
         "schedule": crontab(hour=3, minute=30),
     },
+    "dispatch-post-handover-followups": {
+        "task": "apps.scheduler.tasks.dispatch_post_handover_followups",
+        "schedule": crontab(hour=8, minute=15),
+    },
 }

@@ -206,6 +206,11 @@ def cancel_booking(request, meeting_id):
     m.cancellation_reason = reason
     m.save()
     m.reminders.update(status="CANCELLED")
+    try:
+        from apps.notifications.handover_emails import meeting_cancelled_notice
+        meeting_cancelled_notice(m, reason=reason, actor=request.user)
+    except Exception:
+        pass
     log_action(request.user, "meeting.cancelled", "schedules",
                f"Meeting {m.id} ({m.subject}) cancelled. Reason: {reason}")
     if pa_sent:

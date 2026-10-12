@@ -22,6 +22,13 @@ def mark_go_live(request, meeting_id):
     if m.go_live_done:
         messages.info(request, "This handover is already marked GO-live.")
         return redirect("/")
+    handover_date = m.booking_date or timezone.localtime(m.start_at).date()
+    if handover_date >= timezone.localdate():
+        messages.error(request, "GO-live can only be marked after the handover date has passed.")
+        return redirect("/")
+    if m.status in (Meeting.Status.CANCELLED, Meeting.Status.FAILED):
+        messages.error(request, "GO-live cannot be marked for a cancelled or failed handover.")
+        return redirect("/")
     m.go_live_done = True
     m.go_live_done_at = timezone.now()
     m.go_live_done_by = request.user

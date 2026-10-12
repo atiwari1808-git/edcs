@@ -12,7 +12,11 @@ Four notices:
   * escalation_notice(meeting, policy, cfg)               -> global managers (day 15)
 """
 from datetime import date
-from apps.notifications.email import _email_wrapper, _safe_send, _site_url
+from apps.notifications.email import _shell, _safe_send, _site_url
+
+
+def _email_wrapper(title: str, accent_colour: str, body_html: str) -> str:
+    return _shell(title, "", accent_colour, body_html)
 
 
 # ── helpers ────────────────────────────────────────────────────────────────

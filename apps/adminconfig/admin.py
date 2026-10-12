@@ -58,6 +58,20 @@ class ToolConfigAdmin(admin.ModelAdmin):
     list_editable = ("eridoc_path_mode", "is_active", "sort_order")
 
 
+
+
+@admin.register(models.HandoverFollowupConfig)
+class HandoverFollowupConfigAdmin(admin.ModelAdmin):
+    list_display = ("tool", "go_live_reminder_day", "team_emails", "is_active")
+    list_filter = ("is_active", "tool")
+    fields = ("tool", "team_emails", "go_live_reminder_day", "is_active")
+
+
+@admin.register(models.EscalationPolicy)
+class EscalationPolicyAdmin(admin.ModelAdmin):
+    list_display = ("name", "escalation_day", "manager_emails", "cc_team", "is_active")
+    list_editable = ("escalation_day", "cc_team", "is_active")
+    fields = ("name", "manager_emails", "escalation_day", "cc_team", "is_active")
 @admin.register(models.MeetingTemplate)
 class MeetingTemplateAdmin(admin.ModelAdmin):
     list_display  = ("key", "tool", "subject_pattern")

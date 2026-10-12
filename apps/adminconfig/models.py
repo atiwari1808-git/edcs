@@ -1,5 +1,11 @@
 from django.db import models
 
+
+def _split_emails(raw: str) -> list[str]:
+    return list(dict.fromkeys(
+        e.strip().lower() for e in (raw or "").split(",") if e.strip()
+    ))
+
 WEEKDAYS = [(0, "Monday"), (1, "Tuesday"), (2, "Wednesday"), (3, "Thursday"),
             (4, "Friday"), (5, "Saturday"), (6, "Sunday")]
 
@@ -103,6 +109,80 @@ class ToolConfig(models.Model):
             return False
 
 
+
+
+class HandoverFollowupConfig(models.Model):
+    tool = models.OneToOneField(
+        ToolConfig,
+        on_delete=models.CASCADE,
+        related_name="handover_followup",
+    )
+    team_emails = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "Comma-separated recipient emails for this tool's GO-live reminder. "
+            "These recipients start receiving daily reminders once the configured "
+            "day threshold is crossed."
+        ),
+    )
+    go_live_reminder_day = models.PositiveIntegerField(
+        default=10,
+        help_text=(
+            "Start sending the per-tool GO-live reminder once the handover is this "
+            "many days old. The reminder is then sent daily until GO-live is marked."
+        ),
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["tool__sort_order", "tool__key"]
+        verbose_name = "Handover follow-up config"
+        verbose_name_plural = "Handover follow-up configs"
+
+    def __str__(self):
+        return f"{self.tool.display_name} follow-up"
+
+    def team_email_list(self):
+        return _split_emails(self.team_emails)
+
+
+class EscalationPolicy(models.Model):
+    name = models.CharField(max_length=64, unique=True, default="Global escalation")
+    manager_emails = models.TextField(
+        blank=True,
+        default="",
+        help_text=(
+            "Comma-separated manager / escalation recipient emails. "
+            "This matrix is shared across all tools."
+        ),
+    )
+    escalation_day = models.PositiveIntegerField(
+        default=15,
+        help_text=(
+            "Start sending escalation emails once the handover is this many days old. "
+            "The escalation is then sent daily until GO-live is marked."
+        ),
+    )
+    cc_team = models.BooleanField(
+        default=True,
+        help_text="Also copy the tool-level team recipients and organizer on escalation mails.",
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Escalation policy"
+        verbose_name_plural = "Escalation policies"
+
+    def __str__(self):
+        return self.name
+
+    def manager_email_list(self):
+        return _split_emails(self.manager_emails)
+
+    @classmethod
+    def active(cls):
+        return cls.objects.filter(is_active=True).order_by("id").first()
 class WorkingHours(models.Model):
     weekday = models.PositiveSmallIntegerField(choices=WEEKDAYS, unique=True)
     is_working = models.BooleanField(default=True)
