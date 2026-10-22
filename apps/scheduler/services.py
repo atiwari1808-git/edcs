@@ -80,7 +80,7 @@ def all_bookings():
 
 
 def filtered_bookings(q="", tool="", status="", date_from="", date_to="",
-                      jira_type="", sm_scope_email=""):
+                      jira_type="", sm_scope_email="", column_filters=None):
     rows = all_bookings()
     if q:
         text_q = (
@@ -157,6 +157,35 @@ def filtered_bookings(q="", tool="", status="", date_from="", date_to="",
             # Scrum masters (Req 5)
             "scrum_masters": scrum_masters,
         })
+    return _filter_booking_rows(out, column_filters)
+
+
+def _filter_booking_rows(rows, column_filters=None):
+    """Apply the shared Dashboard column filters to meeting rows.
+
+    The UI mirrors these filters on both tables; this server-side pass makes
+    the Excel export use exactly the same selection.
+    """
+    filters = {str(k): str(v).strip().lower() for k, v in (column_filters or {}).items() if str(v).strip()}
+    if not filters:
+        return rows
+    def hay(row, key):
+        return str(row.get(key, "") or "").lower()
+    out = []
+    for row in rows:
+        m = row["m"]
+        values = {
+            "tool": m.tool_key,
+            "jira": row.get("jira_id", ""),
+            "automation": row.get("automation_name", ""),
+            "scrum": " ".join(str(x.get("username", "")) + " " + str(x.get("email", "")) for x in row.get("scrum_masters", [])),
+            "initiated": m.created_at.strftime("%Y-%m-%d %H:%M") if m.created_at else "",
+            "handover": m.start_at.strftime("%Y-%m-%d %H:%M") if m.start_at else "",
+            "organizer": " ".join(filter(None, [getattr(m.organizer, "username", ""), getattr(m.organizer, "email", ""), getattr(m.organizer, "first_name", ""), getattr(m.organizer, "last_name", "")])),
+            "status": row.get("display_status", ""),
+        }
+        if all(v in str(values.get(k, "")).lower() for k, v in filters.items()):
+            out.append(row)
     return out
 
 
@@ -221,7 +250,7 @@ def _status_colour(status: str) -> str:
     return _CLR["type_other"]
 
 
-def bookings_workbook(rows) -> io.BytesIO:
+def bookings_workbook(rows, no_meeting_runs=None) -> io.BytesIO:
     """Build a styled two-sheet Excel workbook with ALL handover details."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -320,12 +349,13 @@ def bookings_workbook(rows) -> io.BytesIO:
     _style_header_row(ws2)
     AT_COL_2, STATUS_COL_2 = 3, 10
     CENTER_2 = {2, 3, 4, 6, 7, 8, 10, 12, 13}
-    no_meeting_runs = (
-        ValidationRun.objects
-        .filter(automation_type__requires_scheduling=False)
-        .select_related("requested_by", "tool", "automation_type", "jira_type")
-        .order_by("-started_at")
-    )
+    if no_meeting_runs is None:
+        no_meeting_runs = (
+            ValidationRun.objects
+            .filter(automation_type__requires_scheduling=False)
+            .select_related("requested_by", "tool", "automation_type", "jira_type")
+            .order_by("-started_at")
+        )
     STATUS_REMARKS = {
         "PASSED": "No meeting needed - verification passed",
         "FAILED": "Verification failed - no meeting required",
@@ -363,4 +393,3 @@ def bookings_workbook(rows) -> io.BytesIO:
     buf = io.BytesIO()
     wb.save(buf)
     return buf
-

@@ -24,13 +24,26 @@ def verify_page(request):
             .prefetch_related("results")
             .first()
         )
-    history = (
-        ValidationRun.objects
-        .filter(requested_by=request.user)
-        .select_related("tool", "automation_type", "jira_type")
-        .prefetch_related("results")
-        .order_by("-started_at")[:20]
+
+    is_rbac_admin = (
+        request.user.is_superuser
+        or getattr(request.user, "has_perm_code", lambda _p: False)("users.view")
+        or getattr(request.user, "has_perm_code", lambda _p: False)("users.edit")
+        or getattr(request.user, "has_perm_code", lambda _p: False)("roles.view")
+        or getattr(request.user, "has_perm_code", lambda _p: False)("roles.edit")
+        or getattr(request.user, "has_perm_code", lambda _p: False)("roles.assign")
     )
+
+    history_qs = (
+        ValidationRun.objects
+        .select_related("tool", "automation_type", "jira_type", "requested_by")
+        .prefetch_related("results")
+        .order_by("-started_at")
+    )
+    if not is_rbac_admin:
+        history_qs = history_qs.filter(requested_by=request.user)
+    history = history_qs[:50]
+
     return render(request, "verify.html", {
         "nav": "verify",
         "tools": ToolConfig.objects.filter(is_active=True),
@@ -44,28 +57,29 @@ def verify_page(request):
 @require_permission("verification.execute")
 @require_POST
 def start(request):
-    data = json.loads(request.body or "{}")
+    try:
+        data = json.loads(request.body.decode("utf-8") or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid request body"}, status=400)
+
     try:
         run = start_run(
             request.user,
-            data.get("tool_key", ""),
-            data.get("jira_id", ""),
-            data.get("repo_url", ""),
-            data.get("customer_name", ""),
-            data.get("automation_name", ""),
-            data.get("automation_type_key", ""),
-            jira_type_key=data.get("jira_type_key", ""),
-            enhancement_jira_id=data.get("enhancement_jira_id", ""),
-            eridoc_path=data.get("eridoc_path", ""),
+            (data.get("tool_key") or "").strip(),
+            (data.get("jira_id") or "").strip(),
+            repo_url=(data.get("repo_url") or "").strip(),
+            jira_type_key=(data.get("jira_type") or data.get("jira_type_key") or "").strip(),
+            enhancement_jira_id=(data.get("enhancement_jira_id") or "").strip(),
+            eridoc_path=(data.get("eridoc_path") or "").strip(),
+            automation_type_key=(data.get("automation_type_id") or data.get("automation_type_key") or "").strip(),
+            automation_name=(data.get("automation_name") or "").strip(),
+            customer_name=(data.get("customer_name") or "").strip(),
+            doc_scrum_master_email=(data.get("doc_scrum_master_email") or "").strip().lower(),
         )
     except ValidationError as e:
         return JsonResponse({"error": str(e)}, status=400)
-    log_action(request.user, "validation.started", "verification",
-               f"{run.tool.key} / {run.jira_id} "
-               f"(customer: {run.customer_name}, "
-               f"type: {run.automation_type.key if run.automation_type else 'N/A'})")
-    return JsonResponse({"run_id": str(run.id)}, status=202)
 
+    return JsonResponse({"run_id": str(run.id)})
 
 @require_permission("verification.execute")
 @require_POST

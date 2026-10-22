@@ -58,6 +58,17 @@ class ValidationRun(models.Model):
     cancelled_at = models.DateTimeField(null=True, blank=True)
     pdf_file = models.FileField(upload_to="reports/", blank=True, default="")
 
+    doc_scrum_master_email = models.EmailField(blank=True, default="")
+    go_live_done = models.BooleanField(default=False)
+    go_live_done_at = models.DateTimeField(null=True, blank=True)
+    go_live_done_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
     @property
     def requires_scheduling(self):
         if self.automation_type is None:

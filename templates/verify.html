@@ -1,24 +1,21 @@
 {% extends 'base.html' %}
-{% block title %}Verify Documents · Handover Scheduler{% endblock %}
+{% block title %}Verify Documents  Handover Scheduler{% endblock %}
 {% block content %}
-<div class="guide-head">
-  <h1><i class="bi bi-clipboard2-check-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Verify Documents</h1>
-  <a href="/guide/" class="btn btn-secondary guide-dl"><i class="bi bi-life-preserver"></i> Help &amp; Guide</a>
-</div>
+<h1><i class="bi bi-clipboard2-check-fill" style="color:var(--indigo);font-size:1.1rem;margin-right:8px"></i>Verify Documents</h1>
 <p>Select the tool, choose the automation type, enter the Customer Name and JIRA ID, and provide the Bitbucket link (required for In-House, Enable, and RPA).
 Documents and code are scanned automatically before you can schedule a handover call.</p>
 <div class="verify-layout">
 <div class="panel pad">
 {% if "verification.execute" not in perms_set %}
 <div class="overall-banner" style="background:var(--info-bg);color:var(--primary-active);margin-bottom:14px">
-<i class="bi bi-eye-fill"></i> View-only access — running validations requires an additional permission.
+<i class="bi bi-eye-fill"></i> View-only access  running validations requires an additional permission.
 </div>
 {% endif %}
 <!-- Tool -->
 <div class="field-group">
 <label for="tool">Tool</label>
 <select id="tool" required {% if "verification.execute" not in perms_set %}disabled{% endif %}>
-<option value="" disabled selected>— Select tool —</option>
+<option value="" disabled selected> Select tool </option>
 {% for t in tools %}
 <option value="{{ t.key }}" data-repo="{{ t.requires_repo_url|yesno:'1,0' }}" data-eridoc="{{ t.uses_eridoc|yesno:'1,0' }}" data-eridoc-mode="{{ t.eridoc_path_mode }}">{{ t.display_name }}</option>
 {% endfor %}
@@ -28,7 +25,7 @@ Documents and code are scanned automatically before you can schedule a handover 
 <div class="field-group">
 <label for="jira_type">JIRA Type</label>
 <select id="jira_type" {% if "verification.execute" not in perms_set %}disabled{% endif %}>
-<option value="" selected>— Select JIRA type —</option>
+<option value="" selected> Select JIRA type </option>
 {% for jt in jira_types %}
 <option value="{{ jt.key }}" data-requires-parent="{{ jt.requires_parent|yesno:'1,0' }}">{{ jt.display_name }}</option>
 {% endfor %}
@@ -38,12 +35,12 @@ Documents and code are scanned automatically before you can schedule a handover 
 <div class="field-group">
 <label for="automation_type">Automation Type</label>
 <select id="automation_type" required {% if "verification.execute" not in perms_set %}disabled{% endif %}>
-<option value="" disabled selected>— Select type —</option>
+<option value="" disabled selected> Select type </option>
 {% for at in automation_types %}
 <option value="{{ at.key }}"
 data-requires-scheduling="{{ at.requires_scheduling|yesno:'1,0' }}"
 data-label="{{ at.display_name }}">
-{{ at.display_name }}{% if not at.requires_scheduling %} — No meeting needed{% endif %}
+{{ at.display_name }}{% if not at.requires_scheduling %}  No meeting needed{% endif %}
 </option>
 {% endfor %}
 </select>
@@ -54,27 +51,37 @@ padding:7px 12px;border-radius:6px;border-left:3px solid"></div>
 <!-- Customer Name -->
 <div class="field-group">
 <label for="customer_name">Customer Name</label>
-<input type="text" id="customer_name" placeholder="e.g. Bharti Airtel" required
+<input type="text" id="customer_name" placeholder="e.g.
+Bharti Airtel" required
 {% if "verification.execute" not in perms_set %}disabled{% endif %}>
 </div>
 <!-- Automation Name -->
 <div class="field-group">
 <label for="automation_name">Automation Name</label>
-<input type="text" id="automation_name" placeholder="e.g. ACE_RAN_ERICSSON_BL_TRX" required
+<input type="text" id="automation_name" placeholder="e.g.
+ACE_RAN_ERICSSON_BL_TRX" required
 {% if "verification.execute" not in perms_set %}disabled{% endif %}>
 </div>
 <!-- JIRA ID -->
 <div class="field-group">
 <label for="jira_id" id="jira_label">JIRA ID</label>
-<input type="text" id="jira_id" placeholder="e.g. PROJ-1234" required
+<input type="text" id="jira_id" placeholder="e.g.
+PROJ-1234" required
 {% if "verification.execute" not in perms_set %}disabled{% endif %}>
 </div>
 <!-- Enhancement JIRA ID (shown only for Enhancement JIRA types) -->
 <div class="field-group" id="enh-group" style="display:none">
 <label for="enhancement_jira_id">Enhancement JIRA ID</label>
-<input type="text" id="enhancement_jira_id" placeholder="e.g. PROJ-5678"
+<input type="text" id="enhancement_jira_id" placeholder="e.g.
+PROJ-5678"
 {% if "verification.execute" not in perms_set %}disabled{% endif %}>
 <div class="field-hint">Each enhancement is verified and scheduled independently but stays linked to the Parent JIRA above.</div>
+</div>
+<!-- Doc-only Scrum Master Email -->
+<div class="field-group" id="doc-sm-group" style="display:none">
+  <label for="doc_scrum_master_email">Scrum Master Email</label>
+  <input type="email" id="doc_scrum_master_email" placeholder="e.g. scrum.master@ericsson.com" {% if "verification.execute" not in perms_set %}disabled{% endif %}>
+  <div class="field-hint">Required for No Meeting Needed flows so ownership, dashboard display, Go Live, and notifications work correctly.</div>
 </div>
 <!-- Bitbucket Link (conditional) -->
 <div class="field-group" id="repo-group" style="display:none">
@@ -85,7 +92,8 @@ padding:7px 12px;border-radius:6px;border-left:3px solid"></div>
 <!-- ERIDOC folder path (shown only for tools whose scanners include ERIDOC) -->
 <div class="field-group" id="eridoc-group" style="display:none">
 <label for="eridoc_path"><span id="eridoc_label_text">ERIDOC Folder Path</span></label>
-<input type="text" id="eridoc_path" placeholder="e.g. /Projects/ACME/RAN/PROJ-1234"
+<input type="text" id="eridoc_path" placeholder="e.g.
+/Projects/ACME/RAN/PROJ-1234"
 {% if "verification.execute" not in perms_set %}disabled{% endif %}>
 <div class="field-hint" id="eridoc-hint">Path or link to the ERIDOC folder to verify.</div>
 </div>
@@ -103,12 +111,12 @@ padding:7px 12px;border-radius:6px;border-left:3px solid"></div>
 <i class="bi bi-check-circle-fill"></i>
 All checks passed for <b>{{ result_run.tool.display_name }}</b>
 ({{ result_run.automation_type.display_name }}).
-<br><small>✅ No meeting scheduling required — a confirmation email has been sent.</small>
+<br><small> No meeting scheduling required  a confirmation email has been sent.</small>
 </div>
 {% else %}
 <div class="overall-banner pass">
 <i class="bi bi-check-circle-fill"></i>
-All checks passed — you're clear to schedule your {{ result_run.tool.display_name }} handover call.
+All checks passed  you're clear to schedule your {{ result_run.tool.display_name }} handover call.
 </div>
 {% endif %}
 {% elif result_run.status == "FAILED" %}
@@ -151,7 +159,7 @@ class="btn btn-secondary btn-block" style="margin-bottom:10px">
 </a>
 {% if result_run.status == "PASSED" %}
 {% if result_run.automation_type and not result_run.automation_type.requires_scheduling %}
-<!-- Doc-only types — no scheduler button -->
+<!-- Doc-only types  no scheduler button -->
 <div class="overall-banner" style="background:var(--info-bg);color:var(--primary-active)">
 <i class="bi bi-envelope-check-fill"></i>
 Confirmation email sent to you and the configured recipients.
@@ -172,7 +180,7 @@ Continue to Scheduler <i class="bi bi-arrow-right"></i>
 <!-- Progress pane (shown during scan) -->
 <div id="progress-pane" style="display:none">
 <div class="overall-banner" style="background:var(--info-bg);color:var(--primary-active)">
-<i class="bi bi-hourglass-split"></i> Scanning… this usually takes 1–5 minutes.
+<i class="bi bi-hourglass-split"></i> Scanning this usually takes 15 minutes.
 </div>
 <div class="check-grid" id="progress-cards"></div>
 <button type="button" id="terminate-btn" class="btn btn-danger btn-block"
@@ -214,17 +222,17 @@ background:{% if not r.automation_type.requires_scheduling %}#fff3cd;color:#7d5a
 {% else %}#d6ead7;color:#1e6b2e{% endif %}">
 {{ r.automation_type.display_name }}
 </span>
-{% else %}—{% endif %}
+{% else %}{% endif %}
 </td>
-<td>{{ r.customer_name|default:"—" }}</td>
+<td>{{ r.customer_name|default:"" }}</td>
 <td>{{ r.jira_id }}</td>
-<td>{{ r.automation_name|default:"—" }}</td>
+<td>{{ r.automation_name|default:"" }}</td>
 {% with res=r.results.all %}
 <td>{% for x in res %}{% if x.scanner == 'ERIDOC' %}<span class="badge badge-{{ x.status }}">{{ x.status|lower }}</span>{% endif %}{% endfor %}</td>
 <td>
 {% if r.tool.requires_repo_url %}
 {% for x in res %}{% if x.scanner == 'BITBUCKET' %}<span class="badge badge-{{ x.status }}">{{ x.status|lower }}</span>{% endif %}{% endfor %}
-{% else %}—{% endif %}
+{% else %}{% endif %}
 </td>
 {% endwith %}
 <td><span class="badge badge-{{ r.status }}">{{ r.status|lower }}</span></td>
@@ -259,11 +267,13 @@ const enhInput    = document.getElementById('enhancement_jira_id');
 const eridocGroup = document.getElementById('eridoc-group');
 const eridocInput = document.getElementById('eridoc_path');
 const eridocHint  = document.getElementById('eridoc-hint');
+const docSmGroup = document.getElementById('doc-sm-group');
+const docSmEmail = document.getElementById('doc_scrum_master_email');
 let needsRepo     = false;
 let needsEnh      = false;
 let hasEridoc     = false;
 let eridocReq     = false;
-// ── Session-storage restore ──────────────────────────────────────────────
+//  Session-storage restore
 const SS_KEY = 'edcs_verify_inputs';
 try {
 const saved = JSON.parse(sessionStorage.getItem(SS_KEY) || '{}');
@@ -276,6 +286,7 @@ if (saved.repo_url)        repo.value       = saved.repo_url;
 if (saved.jira_type)       jiraTypeSel.value = saved.jira_type;
 if (saved.enhancement_jira_id) enhInput.value = saved.enhancement_jira_id;
 if (saved.eridoc_path)     eridocInput.value = saved.eridoc_path;
+if (saved.doc_scrum_master_email) docSmEmail.value = saved.doc_scrum_master_email;
 } catch(e) {}
 function persist() {
 try {
@@ -284,17 +295,19 @@ tool: toolSel.value, automation_type: atSel.value,
 customer_name: customer.value, automation_name: automation.value,
 jira_id: jira.value, repo_url: repo.value,
 jira_type: jiraTypeSel.value, enhancement_jira_id: enhInput.value,
-eridoc_path: eridocInput.value
+eridoc_path: eridocInput.value,
+  doc_scrum_master_email: docSmEmail.value
 }));
 } catch(e) {}
 }
-// ── Automation type hint banner ──────────────────────────────────────────
+//  Automation type hint banner
 function updateTypeHint() {
 const opt = atSel.selectedOptions[0];
 if (!opt || !opt.value) { typeHint.style.display = 'none'; return; }
 const requiresSched = opt.dataset.requiresScheduling === '1';
 const label         = opt.dataset.label || opt.text;
-if (requiresSched) {
+docSmGroup.style.display = requiresSched ? 'none' : 'block';
+  if (requiresSched) {
 typeHint.style.display    = 'block';
 typeHint.style.background = '#e3f2fd';
 typeHint.style.color      = '#0d47a1';
@@ -309,10 +322,10 @@ typeHint.style.color      = '#7d5a00';
 typeHint.style.borderColor = '#f9a825';
 typeHint.innerHTML = `<i class="bi bi-envelope-check-fill"></i>
 <b>${label}:</b> Only document verification will be performed.
-No meeting scheduling required — a detailed report will be emailed automatically on completion.`;
+No meeting scheduling required  a detailed report will be emailed automatically on completion.`;
 }
 }
-// ── JIRA type (Story / Enhancement) ──────────────────────────────────────
+//  JIRA type (Story / Enhancement)
 function updateJiraType() {
 const opt = jiraTypeSel.selectedOptions[0];
 needsEnh = !!(opt && opt.dataset.requiresParent === '1');
@@ -324,19 +337,21 @@ jiraLabel.textContent = 'JIRA ID';
 enhGroup.style.display = 'none';
 }
 }
-// ── ERIDOC folder path toggle (per tool) ─────────────────────────────────
+//  ERIDOC folder path toggle (per tool)
 function updateEridoc() {
 const opt = toolSel.selectedOptions[0];
 hasEridoc = !!(opt && opt.dataset.eridoc === '1');
 eridocReq = hasEridoc && (opt && opt.dataset.eridocMode === 'REQUIRED');
-eridocGroup.style.display = hasEridoc ? 'block' : 'none';
+eridocGroup.style.display = hasEridoc ?
+'block' : 'none';
 if (hasEridoc) {
 eridocHint.textContent = eridocReq
-? 'Required: enter the ERIDOC folder path/link to verify.'
+?
+'Required: enter the ERIDOC folder path/link to verify.'
 : 'Optional: leave blank to fall back to the JIRA-based lookup.';
 }
 }
-// ── Validation ───────────────────────────────────────────────────────────
+//  Validation
 function check() {
 const okCustomer   = customer.value.trim().length > 0;
 const okAutomation = automation.value.trim().length > 0;
@@ -346,12 +361,14 @@ const okRepo       = !needsRepo || repo.value.trim().length > 10;
 const jiraRe       = /^[A-Za-z][A-Za-z0-9]+-\d+$/;
 const okEnh        = !needsEnh || jiraRe.test(enhInput.value.trim());
 const okEridoc     = !eridocReq || eridocInput.value.trim().length > 0;
-btn.disabled = !(toolSel.value && okCustomer && okAutomation && okType && okJira && okRepo && okEnh && okEridoc);
+const okDocSm      = (atSel.selectedOptions[0] && atSel.selectedOptions[0].dataset.requiresScheduling === '1') || /@/.test(docSmEmail.value.trim());
+btn.disabled = !(toolSel.value && okCustomer && okAutomation && okType && okJira && okRepo && okEnh && okEridoc && okDocSm);
 persist();
 }
 toolSel.onchange = () => {
 needsRepo = toolSel.selectedOptions[0].dataset.repo === '1';
-repoGroup.style.display = needsRepo ? 'block' : 'none';
+repoGroup.style.display = needsRepo ?
+'block' : 'none';
 updateEridoc();
 check();
 };
@@ -363,13 +380,14 @@ customer.oninput   = check;
 automation.oninput = check;
 jira.oninput       = check;
 repo.oninput       = check;
+docSmEmail.oninput = check;
 // Apply restored values on page load
 if (toolSel.value)  { toolSel.onchange(); }
 if (atSel.value)    { updateTypeHint(); }
 updateJiraType();
 if (toolSel.value)  { updateEridoc(); }
 check();
-// ── Run verification ─────────────────────────────────────────────────────
+//  Run verification
 btn.onclick = async () => {
 btn.disabled = true;
 errBox.textContent = '';
@@ -380,9 +398,13 @@ customer_name:      customer.value.trim(),
 automation_name:    automation.value.trim(),
 automation_type_key: atSel.value,
 jira_type_key:      jiraTypeSel.value,
-enhancement_jira_id: needsEnh ? enhInput.value.trim() : '',
-eridoc_path:        hasEridoc ? eridocInput.value.trim() : '',
-repo_url:           needsRepo ? repo.value.trim() : '',
+enhancement_jira_id: needsEnh ?
+enhInput.value.trim() : '',
+eridoc_path:        hasEridoc ?
+eridocInput.value.trim() : '',
+repo_url:           needsRepo ?
+repo.value.trim() : '',
+  doc_scrum_master_email: (docSmGroup.style.display !== 'none') ? docSmEmail.value.trim() : '',
 };
 const r = await fetch('/api/v1/validations', {
 method: 'POST',
@@ -400,10 +422,10 @@ document.getElementById('progress-pane').style.display = 'block';
 window._edcsRunId = d.run_id;
 poll(d.run_id);
 };
-// ── Terminate ─────────────────────────────────────────────────────────────
+//  Terminate
 document.getElementById('terminate-btn').onclick = async () => {
 if (!window._edcsRunId) return;
-if (!confirm('Terminate this validation? Scanners will stop at the next safe point.')) return;
+if (!confirm('Terminate this validation?\nScanners will stop at the next safe point.')) return;
 const tbtn = document.getElementById('terminate-btn');
 tbtn.disabled = true;
 const r = await fetch('/api/v1/validations/' + window._edcsRunId + '/cancel', {
@@ -413,7 +435,7 @@ headers: { 'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)[1] },
 const d = await r.json();
 document.getElementById('terminate-msg').textContent = d.message || '';
 };
-// ── Poll ──────────────────────────────────────────────────────────────────
+//  Poll
 async function poll(id) {
 const r = await fetch('/api/v1/validations/' + id);
 const d = await r.json();

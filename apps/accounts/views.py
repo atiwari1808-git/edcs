@@ -19,6 +19,7 @@ from apps.notifications import email as notify
 from apps.rbac.decorators import require_permission
 from apps.scheduler.models import Meeting
 from .models import User
+from apps.accounts.models import User
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9._]{3,32}$")
 
@@ -121,6 +122,38 @@ def deactivate_user(request, user_id):
     return redirect("/manage/users/")
 
 
+def _dashboard_column_filters(request):
+    return {key: request.GET.get("col_" + key, "").strip() for key in (
+        "tool", "jira", "automation", "scrum", "initiated",
+        "handover", "organizer", "status") if request.GET.get("col_" + key, "").strip()}
+
+
+def _filter_no_meeting_runs(runs, q="", tool="", status="", date_from="", date_to="", column_filters=None):
+    filters = {str(k): str(v).lower() for k, v in (column_filters or {}).items() if str(v).strip()}
+    q = (q or "").lower()
+    out = []
+    for r in runs:
+        tool_value = getattr(getattr(r, "tool", None), "key", "") or getattr(getattr(r, "tool", None), "display_name", "")
+        organizer = getattr(getattr(r, "requested_by", None), "username", "")
+        started = r.started_at.strftime("%Y-%m-%d %H:%M") if r.started_at else ""
+        status_value = "completed" if (r.status or "").upper()=="PASSED" else ((r.status or "").lower())
+        searchable = " ".join(filter(None, [tool_value, getattr(r, "jira_id", ""), getattr(r, "automation_name", ""), organizer, getattr(getattr(r, "requested_by", None), "email", ""), getattr(r, "doc_scrum_master_email", ""), getattr(r, "doc_scrum_master_username", ""), status_value])).lower()
+        if q and q not in searchable:
+            continue
+        if tool and str(tool_value) != str(tool):
+            continue
+        if status and status_value != status.lower():
+            continue
+        if date_from and started[:10] < date_from:
+            continue
+        if date_to and started[:10] > date_to:
+            continue
+        values = {"tool": tool_value, "jira": getattr(r, "jira_id", ""), "automation": getattr(r, "automation_name", ""), "scrum": " ".join(filter(None, [getattr(r, "doc_scrum_master_username", ""), getattr(r, "doc_scrum_master_email", "")])) or "—", "initiated": started, "handover": started, "organizer": " ".join(filter(None, [organizer, getattr(getattr(r, "requested_by", None), "email", "")])), "status": status_value}
+        if all(v in str(values.get(k, "")).lower() for k, v in filters.items()):
+            out.append(r)
+    return out
+
+
 @require_permission("dashboard.view")
 def dashboard(request):
     """Handover dashboard: stats, filters, bookings table.
@@ -134,6 +167,7 @@ def dashboard(request):
     jira_type_filter = request.GET.get("jira_type", "")
     date_from     = request.GET.get("date_from", "")
     date_to       = request.GET.get("date_to", "")
+    column_filters = _dashboard_column_filters(request)
 
     from apps.adminconfig.models import ToolConfig, JiraType
     from apps.scheduler.services import (
@@ -150,17 +184,27 @@ def dashboard(request):
 
     rows  = filtered_bookings(q, tool_filter, status_filter, date_from, date_to,
                               jira_type=jira_type_filter,
-                              sm_scope_email=sm_scope_email)
-    stats = {
-        **booking_stats(),
-        "no_meeting": no_meeting_stats(),
-    }
-    no_meeting_runs = (
+                              sm_scope_email=sm_scope_email,
+                              column_filters=column_filters)
+    stats = {**booking_stats()};
+    _nm = no_meeting_stats(); stats["no_meeting"] = _nm; stats["total"] = stats.get("total",0)+_nm; stats["completed"] = stats.get("completed",0)+_nm
+    no_meeting_runs = list(
         ValidationRun.objects
-        .filter(automation_type__requires_scheduling=False)
+        .filter(automation_type__requires_scheduling=False, status="PASSED")
         .select_related("requested_by", "tool", "automation_type", "jira_type")
-        .order_by("-started_at")[:50]
+        .order_by("-started_at")[:200]
     )
+    no_meeting_runs = _filter_no_meeting_runs(
+        no_meeting_runs, q, tool_filter, status_filter, date_from, date_to, column_filters
+    )
+    for r in no_meeting_runs:
+        email = (getattr(r, "doc_scrum_master_email", "") or "").strip().lower()
+        if email:
+            u = User.objects.filter(email__iexact=email).only("username").first()
+            r.scrum_master_text = u.username if u else email.split("@", 1)[0]
+        elif not getattr(r, "scrum_master_text", ""):
+            r.scrum_master_text = ""
+
     return render(request, "dashboard.html", {
         "nav":            "dashboard",
         "bookings":       rows,
@@ -173,6 +217,7 @@ def dashboard(request):
         "jira_type_filter": jira_type_filter,
         "date_from":      date_from,
         "date_to":        date_to,
+        "column_filters": column_filters,
         "no_meeting_runs": no_meeting_runs,
         "sm_scoped":      sm_scoped,
         "sm_scope_email": sm_scope_email,
@@ -188,6 +233,7 @@ def dashboard_export(request):
     sm_scope_email = ""
     if not can_view_all and not show_all and (request.user.email or "").strip():
         sm_scope_email = request.user.email.strip()
+    column_filters = _dashboard_column_filters(request)
     rows = filtered_bookings(
         request.GET.get("q", "").strip(),
         request.GET.get("tool", ""),
@@ -196,8 +242,12 @@ def dashboard_export(request):
         request.GET.get("date_to", ""),
         jira_type=request.GET.get("jira_type", ""),
         sm_scope_email=sm_scope_email,
+        column_filters=column_filters,
     )
-    buffer = bookings_workbook(rows)
+    from apps.validation.models import ValidationRun
+    no_meeting_runs = list(ValidationRun.objects.filter(automation_type__requires_scheduling=False, status="PASSED").select_related("requested_by", "tool", "automation_type", "jira_type").order_by("-started_at")[:200])
+    no_meeting_runs = _filter_no_meeting_runs(no_meeting_runs, request.GET.get("q", "").strip(), request.GET.get("tool", ""), request.GET.get("status", ""), request.GET.get("date_from", ""), request.GET.get("date_to", ""), column_filters)
+    buffer = bookings_workbook(rows, no_meeting_runs=no_meeting_runs)
     resp = HttpResponse(
         buffer.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")

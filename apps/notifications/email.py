@@ -14,7 +14,7 @@ from html import escape
 
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.conf import settings
-from apps.adminconfig.models import EmailTemplate
+from apps.adminconfig.models import EmailTemplate, HandoverFollowupConfig, HandoverFollowupConfig
 from apps.reports.context import humanize_fix
 
 # ── Brand palette ─────────────────────────────────────────────────────────
@@ -423,6 +423,19 @@ def account_activated(user):
 
 
 # ── Scan completion emails (type-aware) ─────────────────────────────────────
+def _get_tool_recipients(run) -> list[str]:
+    cfg = None
+    if getattr(run, "tool", None):
+        cfg = HandoverFollowupConfig.objects.filter(tool=run.tool, is_active=True).first()
+    if not cfg:
+        return []
+    return list(dict.fromkeys(e for e in cfg.team_email_list() if e))
+
+def _get_requester_recipient(run) -> list[str]:
+    if run.requested_by and run.requested_by.email:
+        return [run.requested_by.email]
+    return []
+
 def _get_recipients(run) -> list[str]:
     recipients = [run.requested_by.email] if run.requested_by else []
     at = run.automation_type

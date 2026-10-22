@@ -18,7 +18,8 @@ class ValidationError(Exception):
 def start_run(user, tool_key: str, jira_id: str, repo_url: str = "",
               customer_name: str = "", automation_name: str = "",
               automation_type_key: str = "", jira_type_key: str = "",
-              enhancement_jira_id: str = "", eridoc_path: str = "") -> ValidationRun:
+              enhancement_jira_id: str = "", eridoc_path: str = "",
+              doc_scrum_master_email: str = "") -> ValidationRun:
     try:
         tool = ToolConfig.objects.get(key=tool_key, is_active=True)
     except ToolConfig.DoesNotExist:
@@ -103,6 +104,19 @@ def start_run(user, tool_key: str, jira_id: str, repo_url: str = "",
     else:
         eridoc_path = ""   # not applicable when the tool has no ERIDOC scanner
 
+    # ── Prevent rerun for completed doc-only handovers ────────────────────
+    if automation_type and getattr(automation_type, "requires_scheduling", True) is False:
+        already_done = ValidationRun.objects.filter(
+            tool=tool,
+            jira_id=jira_id,
+            automation_type=automation_type,
+            status=ValidationRun.Status.PASSED,
+        ).exists()
+        if already_done:
+            raise ValidationError(
+                f"{jira_id} is already completed as a No Meeting Needed handover. Re-running is not allowed."
+            )
+
     # ── Prevent duplicate in-progress runs ───────────────────────────────
     if ValidationRun.objects.filter(
             jira_id=jira_id, status__in=["PENDING", "RUNNING"]).exists():
@@ -114,6 +128,7 @@ def start_run(user, tool_key: str, jira_id: str, repo_url: str = "",
         jira_id=jira_id,
         repo_url=repo_url,
         requested_by=user,
+        doc_scrum_master_email=(doc_scrum_master_email or "").strip().lower(),
         customer_name=customer_name,
         automation_name=automation_name,
         automation_type=automation_type,
