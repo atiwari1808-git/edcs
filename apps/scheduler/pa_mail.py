@@ -14,6 +14,7 @@ Design rules (do not break these — the Flow depends on them):
     field, because Outlook's "Create event" action takes naive local time
     plus a timezone parameter.
 """
+from __future__ import annotations
 import json
 
 from django.conf import settings

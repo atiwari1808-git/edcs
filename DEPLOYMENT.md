@@ -3,8 +3,12 @@
 Power Automate email-trigger scheduling is the default and supported path
 (no Azure AD app registration, no tenant consent needed). Graph mode still
 exists in code (`SCHEDULER_MODE=graph`) as a dormant fallback only. This
-guide covers the app as it stands today: real EDCS scanners, dynamic RBAC,
-per-tool meeting templates, and the Bootstrap/PAMS-styled UI.
+guide covers the app as it stands today: real EDCS scanners, dynamic RBAC
+(with per-role daily quotas), per-tool meeting templates, JIRA
+Story/Enhancement types, scheduling-vs-document-only automation types, the
+ERIDOC folder-link scan, cancel/reschedule, post-handover GO-live
+follow-ups + escalation, the two-sheet bookings Excel export, and the
+Bootstrap/PAMS-styled UI.
 
 Two deployment paths: **A) bare-metal/systemd** on a Linux host and
 **B) Docker Compose** (already in the repo).
@@ -15,7 +19,7 @@ Two deployment paths: **A) bare-metal/systemd** on a Linux host and
 
 | Component | Needed for |
 |---|---|
-| Python **3.11** specifically | Django 4.2 doesn't support 3.13+; on very new distros (Ubuntu 26.04+) the default `python3` may already be 3.14 — install 3.11 explicitly, don't rely on the system default. Symptom if you get this wrong: `/admin/` throws `'super' object has no attribute 'dicts'` on every page. |
+| Python **3.8–3.11** | Django 4.2 supports CPython 3.8 through 3.11 but **not 3.13+**. The project was migrated to be Python 3.8-compatible — any interpreter in the 3.8–3.11 range works. On very new distros (Ubuntu 26.04+) the default `python3` may already be 3.14; install a supported interpreter explicitly, don't rely on the system default. Symptom if you get this wrong: `/admin/` throws `'super' object has no attribute 'dicts'` on every page. See §2b for the pinned 3.8 lock + offline wheelhouse. |
 | **`git` (system package)** | The Bitbucket scanner shells out to `git clone` via GitPython. Missing this is the #1 real-world deploy failure — "Bad git executable," identical on a fresh Linux box or inside Docker. |
 | **`libmagic1` (system package)** | `python-magic` (file-type sniffing in document scanning) needs this C library on Linux — the pip package alone does nothing without it. |
 | PostgreSQL 15 | Production DB (SQLite is dev-only) |
@@ -92,6 +96,34 @@ DEFAULT_FROM_EMAIL=edcs-gate-noreply@ericsson.com
 APP_TIMEZONE=Asia/Kolkata
 ```
 
+> **GO-live follow-ups / escalation need no new env vars.** Recipients and
+> day-offsets are configured in the database (`/admin/adminconfig/` →
+> *Handover follow-up configs* per tool and the single *Escalation policy*),
+> and the emails go out through the same SMTP relay above. You only need to
+> schedule the daily runner — see §4b.
+
+---
+
+## 2b. Requirements files, Python 3.8 lock & offline install
+
+| File | Use it when |
+|---|---|
+| `requirements.txt` | Default, online install on Python 3.8–3.11. Unpinned-to-minimum ranges; includes `-e ./vendor/edcs_core`. This is what the Dockerfile and the bare-metal steps below use. |
+| `requirements-production.txt` | A **fully pinned, tested Python 3.8 lock** (note `backports.zoneinfo` for 3.8). Use this when you want byte-for-byte reproducible production installs on a 3.8 interpreter. |
+| `offline_packages/` | A wheelhouse of every dependency (plus the built `edcs` wheel) for **air-gapped / no-internet** hosts. |
+
+Air-gapped install from the bundled wheelhouse:
+
+```bash
+pip install --no-index --find-links offline_packages -r requirements-production.txt
+```
+
+(The older `requirements-3.10*.txt` / `requirements-offline.txt` files were
+removed in the 3.8 migration — use the three artefacts above instead.)
+
+> Dockerfile currently builds on `python:3.11-slim`. Any 3.8–3.11 base
+> image works; pin it to whatever your platform has standardised on.
+
 ---
 
 ## 3. Path A — Bare-metal / systemd on a Linux host
@@ -100,9 +132,10 @@ APP_TIMEZONE=Asia/Kolkata
 
 ```bash
 sudo apt-get update
+# Use whichever supported interpreter your distro ships (3.8–3.11). 3.11 shown:
 sudo apt-get install -y python3.11 python3.11-venv git libmagic1 \
     build-essential libpq-dev postgresql-client
-# If python3.11 isn't in your distro's default repos (very new Ubuntu):
+# If no supported python3.x is in your distro's default repos (very new Ubuntu):
 #   sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get update
 #   sudo apt-get install -y python3.11 python3.11-venv
 ```
@@ -226,6 +259,46 @@ Move to real Celery when you need either of those.
 
 ---
 
+## 4b. Daily GO-live follow-up / escalation job
+
+After a handover date passes, EDCS-Gate reminds the per-tool team to move
+the JIRA to GO live (default day 10) and escalates to managers if it's
+still open (default day 15). This is driven by:
+
+```bash
+python manage.py run_handover_followups
+```
+
+The command is **idempotent** — each reminder/escalation email fires at
+most once per meeting (guarded by `golive_reminder_sent_at` /
+`escalation_sent_at` timestamps on the meeting), so it's safe to run every
+day (or more often). Run it **once per day**:
+
+- **With `CELERY_TASK_ALWAYS_EAGER=True` (the default — no Celery beat
+  running): you MUST schedule this yourself.** Linux cron example:
+
+  ```cron
+  # /etc/cron.d/edcs-gate-followups  — 07:30 daily
+  30 7 * * * edcsgate cd /opt/edcs-gate/edcs_gate && \
+    /opt/edcs-gate/.venv/bin/python manage.py run_handover_followups >> \
+    /var/log/edcs-gate/followups.log 2>&1
+  ```
+
+  (On Windows, a Task Scheduler daily task running the same command.)
+
+- **With real Celery (`CELERY_TASK_ALWAYS_EAGER=False` + beat running):**
+  the equivalent beat task
+  `apps.scheduler.followup_tasks.dispatch_handover_followups` can be
+  scheduled instead; you don't need the cron entry in that case.
+
+Configure recipients and day-offsets in Django admin
+(`/admin/adminconfig/`): a *Handover follow-up config* per tool
+(`team_emails`, `go_live_reminder_day`) and the single global *Escalation
+policy* (`manager_emails`, `escalation_day`, `cc_team`). With neither
+configured, the command runs and simply sends nothing.
+
+---
+
 ## 5. Power Automate — the network-facing part of this deployment
 
 Nothing in this app calls out to Microsoft or Azure directly. Scheduling
@@ -260,13 +333,15 @@ copy that doesn't, add both via `apt-get` before the `pip install` layer.
 ## 7. Production hardening checklist
 
 - [ ] `DEBUG=False`, strong unique `SECRET_KEY`, exact `ALLOWED_HOSTS`
-- [ ] Python **3.11** confirmed (`python --version` inside the venv/container)
+- [ ] Python **3.8–3.11** confirmed (`python --version` inside the venv/container) — **not** 3.13+
 - [ ] `BITBUCKET_ALLOWED_HOSTS` set to your **real** Bitbucket host, not the placeholder
 - [ ] `git` and `libmagic1` present — confirm with `git --version` and `python -c "import magic"`
 - [ ] SMTP relay reachable and tested — load-bearing for scheduling, not just reminders
 - [ ] Power Automate: sender-check condition matches `DEFAULT_FROM_EMAIL` exactly; both create AND cancel flows built; cancel flow's SharePoint list (or confirmed-working Get-events alternative) in place
 - [ ] `seed_rbac` run; starter roles reviewed at `/manage/roles/`; every real user has at least one role at `/manage/users/`
 - [ ] Per-tool meeting templates/default attendees configured at `/admin/adminconfig/meetingtemplate/` if different tools need different attendee lists
+- [ ] Daily `run_handover_followups` scheduled (cron/Task Scheduler if `CELERY_TASK_ALWAYS_EAGER=True`, Celery beat otherwise); *Handover follow-up configs* + *Escalation policy* filled in at `/admin/adminconfig/`
+- [ ] `JiraType` (Story/Enhancement) and `AutomationType` (scheduling vs doc-only) rows seeded/reviewed at `/admin/adminconfig/`; per-tool `eridoc_path_mode` set (Required/Optional) for ERIDOC tools
 - [ ] `enable_detect_secrets_plugin: false` in `secret_rules.yaml` unless you specifically want the noisier extra coverage
 - [ ] `mandatory_documents.yaml` reviewed against your team's real document naming (see `ERIDOC-MATCHING-TUNING-GUIDE.md`)
 - [ ] DB: revoke UPDATE/DELETE on `audit_auditlog` (append-only trail); nightly backups

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from django.urls import path
 from . import views
 from . import doc_only_go_live

@@ -25,7 +25,7 @@ class Status(str, Enum):
     ERROR = "ERROR"  # scan itself failed - never silently PASS
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ScanJob:
     jira_id: str
     repo_url: str
@@ -35,7 +35,7 @@ class ScanJob:
     received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class DocumentRecord:
     doc_id: str
     name: str
@@ -48,7 +48,7 @@ class DocumentRecord:
     metadata: dict = field(default_factory=dict)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Finding:
     severity: Severity
     category: str          # SECRET | IPV4 | IPV6 | CONFIG_CRED | DOC_* | ...
@@ -60,7 +60,7 @@ class Finding:
     matched_text: str = ""  # ALWAYS masked before construction (utils.masking)
 
 
-@dataclass(slots=True)
+@dataclass()
 class ScanResult:
     job: ScanJob
     doc_findings: list[Finding] = field(default_factory=list)

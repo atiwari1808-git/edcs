@@ -11,6 +11,15 @@ Scrum Master → EDCS-Gate (slot + attendees) → SMTP relay
       → trigger mailbox → Power Automate flow → Teams meeting + invites
 ```
 
+> **Only two flows are ever needed — create and cancel.**
+> - **Reschedule** reuses them as-is: the app sends a fresh
+>   `[EDCS-GATE-MEETING]` (create) for the new date/slot and then an
+>   `[EDCS-CANCEL]` for the old one. No third flow to build.
+> - **GO-live reminders / escalation** and the **document-only completion
+>   emails** are plain notification emails sent by the app through the same
+>   SMTP relay — they do **not** go through Power Automate at all, so
+>   nothing here changes for those features.
+
 ---
 
 ## Part 1 — What the app sends (already built, nothing to do)

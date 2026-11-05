@@ -2,6 +2,7 @@
 Single source of truth so the report, PDF and email never drift apart.
 Also normalises the human-readable "Suggested fix" wording.
 """
+from __future__ import annotations
 _PASSWORD_CATEGORIES = {"SECRET", "CONFIG_CRED"}
 _IP_CATEGORIES = {"IPV4", "IPV6"}
 

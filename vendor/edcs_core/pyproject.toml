@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "edcs"
 version = "1.0.0"
 description = "ERIDOC Document & Code Scanner - compliance automation"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 dependencies = [
     "requests>=2.31",
     "tenacity>=8.2",

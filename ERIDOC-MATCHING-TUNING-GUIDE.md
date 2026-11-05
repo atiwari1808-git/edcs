@@ -15,6 +15,18 @@ validation with no restart.
 The only real regexes live in `edcs/document_scanner/mandatory.py`
 (`normalize()`), and you almost never need to touch them — see §3.
 
+> **Before tuning: which folder is being scanned?** As of the ERIDOC
+> folder-link feature, a run can target an explicit folder instead of the
+> JIRA-name lookup. If the Verify page's **ERIDOC Folder Path** was filled
+> (a full ERIDOC link with `locateId`, a bare 16-char Documentum object id,
+> or a `/`-path), the scan is pinned/scoped to that folder; blank falls back
+> to JIRA-name discovery (unless the tool's `eridoc_path_mode` is
+> **REQUIRED**, in which case blank is rejected). The report's
+> `eridoc_mode` stat (`folder-link` / `scoped` / `jira-name`) tells you
+> which path was taken. The alias/fuzzy matching below is **identical**
+> regardless of how the folder was located — this note only affects *which*
+> files the matcher sees. See `INTEGRATION.md` for the resolution rules.
+
 ---
 
 ## 1. How matching actually works (so the YAML makes sense)

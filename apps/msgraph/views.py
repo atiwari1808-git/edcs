@@ -1,3 +1,4 @@
+from __future__ import annotations
 import secrets
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest

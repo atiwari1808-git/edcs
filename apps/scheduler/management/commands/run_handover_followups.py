@@ -9,6 +9,7 @@ This is the reliable path when CELERY_TASK_ALWAYS_EAGER=True (default), where
 Celery beat does not run. Idempotent: each reminder/escalation email fires at
 most once per meeting, guarded by timestamps on the Meeting row.
 """
+from __future__ import annotations
 from django.core.management.base import BaseCommand
 from apps.scheduler.followup_service import run_handover_followups
 

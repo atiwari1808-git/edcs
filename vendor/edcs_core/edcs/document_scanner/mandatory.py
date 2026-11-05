@@ -13,7 +13,7 @@ except ImportError:  # pragma: no cover
     fuzz = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class MandatoryDoc:
     key: str
     aliases: list[str]
@@ -21,7 +21,7 @@ class MandatoryDoc:
     min_chars: int = 120
 
 
-@dataclass(slots=True)
+@dataclass()
 class Checklist:
     docs: list[MandatoryDoc]
     fuzzy_ratio: int = 88

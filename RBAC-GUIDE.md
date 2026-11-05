@@ -12,7 +12,9 @@ permission system, and existing users are auto-migrated onto it.
 
 ```
 Permission(module, action, codename["module.action"], description)
-Role(name, description, is_system, permissions M2M→Permission via RolePermission)
+Role(name, description, is_system,
+     max_meetings_per_day, max_nmn_verifications_per_day,   — per-day quotas
+     permissions M2M→Permission via RolePermission)
 RolePermission(role, permission)                         — join table
 UserRole(user, role, assigned_by, assigned_at)            — join table, audit-aware
 User.roles = M2M(Role, through=UserRole)                  — a user may hold MULTIPLE roles
@@ -22,6 +24,28 @@ A user's **effective permissions = the union of every role they hold**.
 Superusers implicitly hold every permission (Django's standard admin
 escape hatch) — kept deliberately separate from this table so raw
 `/admin/` access and app-level RBAC don't get tangled together.
+
+### Per-role daily quotas
+
+Two optional caps live on each `Role`:
+
+| Field | Caps |
+|---|---|
+| `max_meetings_per_day` | Handover meetings a holder may **book** per calendar day |
+| `max_nmn_verifications_per_day` | "No-meeting-needed" (document-only) verifications a holder may **run** per calendar day |
+
+Semantics for both (see `apps.rbac.permissions.user_daily_limit`):
+
+- **blank / NULL → unlimited** (no cap)
+- **`0` → fully blocked** (not allowed at all)
+- **`N` (>0) → at most N per day**
+
+Because access is the *union* of a user's roles, the **most permissive**
+value wins: any role leaving the field blank makes the effective limit
+unlimited; otherwise the highest numeric cap applies (so every role a user
+holds must agree on `0` for the action to be fully blocked). Superusers are
+always unlimited. Edit the two caps on the role create/edit form at
+`/manage/roles/`.
 
 Nothing is hardcoded: the full permission catalogue lives in
 `apps/rbac/permissions.py::PERMISSION_CATALOGUE` as a plain list of
@@ -132,19 +156,26 @@ coexist:
 | `validation.started` | `POST /api/v1/validations` |
 | `validation.terminated` | `POST /api/v1/validations/<id>/cancel` |
 | `report.generated` | PDF download |
-| `meeting.created` | successful booking |
-| `meeting.cancelled` | cancellation (includes the reason) |
+| `meeting.created` | successful booking (and the new leg of a reschedule) |
+| `meeting.cancelled` | cancellation (includes the reason; also the old leg of a reschedule, reason `"Rescheduled to …"`) |
+| `meeting.golive` | marking a handover GO-live (stops follow-ups) |
 | `role.created` / `role.updated` / `role.deleted` | Role Management UI |
 | `permission.updated` | role permission set changed |
 | `user.role_assigned` | user↔role assignment changed |
 | `user.activated` | account activation |
 
-**Not wired (flagged, not silently skipped):** `meeting.edited` and
-`schedule.modified` from your original list have no corresponding endpoint
-yet in the app (there's no "edit a booking" or "edit a slot template" flow
-today — bookings are create/cancel only, and slot/tool config changes go
-through Django's built-in `/admin/`, which has its own separate history
-log). Say the word if you want either of those built out.
+**Reschedule** reuses the existing flows rather than a new audit verb: it
+creates a fresh meeting (logged `meeting.created`) and then soft-cancels the
+original (logged `meeting.cancelled`, with the detail noting it was a
+reschedule) — so both legs are traceable in the trail.
+
+**Not wired (flagged, not silently skipped):** `schedule.modified` from the
+original list has no corresponding endpoint yet — slot/tool config changes
+go through Django's built-in `/admin/`, which has its own separate history
+log. (Bookings now support create / cancel / **reschedule**, and GO-live
+marking is logged, so the earlier "create/cancel only" caveat no longer
+applies.) Say the word if you want slot/tool-config edits surfaced in the
+app's own `AuditLog` too.
 
 Viewing the trail: Django admin's `AuditLog` list (already registered)
 now shows/filters/searches the new `action`/`module` fields. A dedicated

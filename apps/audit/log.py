@@ -4,6 +4,7 @@ is separate from — and in addition to — the AuditMiddleware's generic
 per-request HTTP logging: that captures every mutating call automatically,
 this captures WHAT happened in plain terms for a human reading the trail.
 """
+from __future__ import annotations
 from .models import AuditLog
 
 # Actions used across the app — kept here as documentation, not an enum;

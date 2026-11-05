@@ -5,6 +5,7 @@ Two processors are registered in settings.TEMPLATES:
   - permissions          -> exposes `perms_set` (UI permission gating)
   - pending_activations  -> exposes `pending_activation_count` (navbar dot)
 """
+from __future__ import annotations
 
 from .permissions import user_permission_codes
 

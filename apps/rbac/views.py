@@ -12,6 +12,7 @@ Granularity: activation is gated by the distinct `users.create` permission, so
 an admin can let (say) a Scrum Master activate accounts WITHOUT granting the
 broader `users.edit` / `users.delete` / `roles.assign` capabilities.
 """
+from __future__ import annotations
 from itertools import groupby
 
 from django.contrib import messages

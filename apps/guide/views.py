@@ -8,6 +8,7 @@ The mandatory-documents section is read LIVE from the same checklist the
 document scanner uses (config/mandatory_documents.yaml), so the Guide can never
 drift out of sync with what the scanner actually enforces.
 """
+from __future__ import annotations
 import io
 import logging
 import os

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Callable
 
 
-@dataclass(slots=True)
+@dataclass()
 class ExtractionResult:
     text: str = ""
     page_count: int = 0

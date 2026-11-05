@@ -6,6 +6,7 @@ CELERY_TASK_ALWAYS_EAGER=True thread mode, Celery beat is NOT running, so the
 management command (run via cron / Windows Task Scheduler) is the reliable
 path in that configuration. Both call the same idempotent engine.
 """
+from __future__ import annotations
 import logging
 from celery import shared_task
 

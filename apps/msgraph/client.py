@@ -6,6 +6,7 @@ touches another person's mailbox. Scopes: User.Read, Calendars.ReadWrite.
 MOCK MODE: when GRAPH_CLIENT_ID is empty the client returns realistic
 fake data so the whole app works before Azure registration is done.
 """
+from __future__ import annotations
 import logging
 import uuid
 import requests

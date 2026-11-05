@@ -3,6 +3,7 @@ existing user's legacy `role` field onto a real Role assignment. Idempotent
 — safe to re-run (uses get_or_create throughout); re-running does NOT
 overwrite permissions an admin has since customized on a starter role,
 since it only creates rows that don't already exist."""
+from __future__ import annotations
 from django.core.management.base import BaseCommand
 
 from apps.accounts.models import User

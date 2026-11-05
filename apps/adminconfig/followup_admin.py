@@ -4,6 +4,7 @@ Django admin registration for the GO-live follow-up + escalation config.
 Additive module — imported from apps/adminconfig/admin.py (one import line,
 see APPLY_GUIDE.md). Keeps the existing admin.py untouched otherwise.
 """
+from __future__ import annotations
 from django.contrib import admin
 from .followup_models import HandoverFollowupConfig, EscalationPolicy
 

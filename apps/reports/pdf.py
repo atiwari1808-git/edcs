@@ -1,4 +1,5 @@
 """Renders the same HTML used by the web report into a stored PDF."""
+from __future__ import annotations
 import io
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string

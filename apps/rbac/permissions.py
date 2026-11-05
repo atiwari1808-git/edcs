@@ -6,6 +6,7 @@ Adding a new module or action is a ONE-LINE change here (plus re-running
 roles simply won't have the new permission until an admin grants it via
 the Role Management UI.
 """
+from __future__ import annotations
 
 # (module, action, human description) — module order here also drives the
 # grouping/order shown in the Role Management UI.

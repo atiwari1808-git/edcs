@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import time, date
 from django.core.management.base import BaseCommand
 from apps.adminconfig.models import (ToolConfig, WorkingHours, Holiday,

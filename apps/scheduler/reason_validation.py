@@ -13,6 +13,7 @@ Usage:
     else:
         reason = cleaned_or_error   # trimmed, length-capped text
 """
+from __future__ import annotations
 import re
 
 # Minimum number of meaningful characters a reason must contain.

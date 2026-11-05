@@ -1,3 +1,4 @@
+from __future__ import annotations
 # Generated migration — adds automation_type FK to ValidationRun
 import django.db.models.deletion
 from django.db import migrations, models

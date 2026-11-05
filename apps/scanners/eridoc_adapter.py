@@ -20,6 +20,7 @@ IMPORTANT (fix): a NON-BLANK path that is neither a valid folder id/link nor a
 the JIRA-name lookup. When the tool marks the path REQUIRED, a blank path is
 also rejected. This prevents a wrong ERIDOC link from being silently ignored.
 """
+from __future__ import annotations
 import logging
 import re
 import time

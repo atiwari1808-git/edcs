@@ -16,6 +16,7 @@ The `eridoc_path` argument (new) lets the caller point the scan at an explicit
 ERIDOC folder path/link. When it is blank the adapter falls back to the
 JIRA-based lookup (the original behaviour).
 """
+from __future__ import annotations
 import logging
 import time
 from django.conf import settings as dj

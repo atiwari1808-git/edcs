@@ -1,3 +1,4 @@
+from __future__ import annotations
 # Generated migration — AutomationType model
 from django.db import migrations, models
 

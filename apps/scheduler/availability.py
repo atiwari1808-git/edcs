@@ -4,6 +4,7 @@ A date is blocked for a tool if it's in the past, a weekend, a holiday /
 blocked date, or every DailySlot that day is already booked for that tool
 (by ANYONE — first come, first served). Live calendar (Graph) is not
 consulted in powerautomate_email mode."""
+from __future__ import annotations
 from datetime import date as date_cls, timedelta
 
 from apps.adminconfig.models import Holiday, BlockedDate

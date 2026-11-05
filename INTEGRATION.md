@@ -143,3 +143,23 @@ missing that clearly exist in ERIDOC, the mismatch is almost always in
 actual file-naming conventions — see `ERIDOC-MATCHING-TUNING-GUIDE.md` for
 how the matcher works and how to verify/fix alias coverage against real
 filenames before trusting a compliance score.
+
+**ERIDOC folder-link scan (explicit folder targeting).** `eridoc_adapter.py`
+now accepts an explicit **ERIDOC Folder Path** (`ValidationRun.eridoc_path`,
+captured on the Verify page). Resolution — the `required` flag comes from the
+tool's `ToolConfig.eridoc_path_mode == "REQUIRED"`:
+
+| Input | Behaviour |
+|---|---|
+| Full ERIDOC link with a folder id (`…?locateId=0b004cff…`) | Pin the scan to that exact folder via a transparent `_FolderPinnedClient` proxy — bypasses JIRA-name discovery, every other engine call passes straight through so classification/scoring/validation are unchanged |
+| Bare 16-char Documentum object id (`0b004cffd9ad177d`) | Same as above |
+| Folder path starting with `/` | Scopes name-based discovery to that root (`eridoc_root_path`) |
+| Blank, tool **OPTIONAL** | Falls back to the original JIRA-name lookup |
+| Blank, tool **REQUIRED** | `EridocPathError` → scanner ERROR ("a path is required") |
+| Non-blank but unrecognisable | `EridocPathError` → scanner ERROR — **never** silently falls back, so a wrong link can't be mistaken for a pass |
+
+`ValidationResult.stats` records `eridoc_mode` (`folder-link` / `scoped` /
+`jira-name`), `eridoc_folder_id`, and `eridoc_root_path` so the report shows
+exactly what was scanned. `.zip` bundles are now accepted: the engine's
+"unsupported content / no validator" warning is suppressed for them while
+the JIRA-ID naming and integrity checks still fire.
