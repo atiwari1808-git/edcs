@@ -1,4 +1,5 @@
 """Booking queries, stats, filters, and Excel export for the dashboard."""
+from __future__ import annotations
 import io
 from datetime import date
 from django.db.models import Q, Value

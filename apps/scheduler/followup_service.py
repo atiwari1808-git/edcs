@@ -19,6 +19,7 @@ and that has NOT been marked GO-live:
 
 Timestamps on the Meeting row guarantee each email fires exactly once.
 """
+from __future__ import annotations
 from datetime import date
 
 from apps.notifications import handover_emails

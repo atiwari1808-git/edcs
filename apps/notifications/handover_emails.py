@@ -11,6 +11,7 @@ Four notices:
   * golive_reminder_notice(meeting, cfg)                  -> per-tool team (day 10)
   * escalation_notice(meeting, policy, cfg)               -> global managers (day 15)
 """
+from __future__ import annotations
 from datetime import date
 from apps.notifications.email import _shell, _safe_send, _site_url
 

@@ -1,4 +1,5 @@
 """EDCS exception hierarchy. Every raised error is typed; no bare excepts."""
+from __future__ import annotations
 
 
 class EdcsError(Exception):

@@ -3,6 +3,7 @@ the UI hides buttons/links a user lacks permission for, but every mutating
 endpoint calls through this decorator independently, so a hand-crafted API
 request without the right permission is rejected the same way regardless
 of what the UI showed."""
+from __future__ import annotations
 import functools
 
 from django.contrib.auth.decorators import login_required

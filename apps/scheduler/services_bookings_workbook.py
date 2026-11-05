@@ -25,6 +25,7 @@ HOW TO APPLY:
   apps/scheduler/services.py with the one below (keep the imports/_CLR block
   and the _type_colour/_status_colour helpers that are already in that file).
 """
+from __future__ import annotations
 import io
 
 

@@ -17,7 +17,7 @@ from edcs.models import Severity
 FILE_SCAN_TIMEOUT_S = 5.0
 
 
-@dataclass(slots=True)
+@dataclass()
 class Rule:
     id: str
     name: str
@@ -27,7 +27,7 @@ class Rule:
     recommendation: str
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleSet:
     rules: list[Rule]
     allowlist_values: list["regex.Pattern"]

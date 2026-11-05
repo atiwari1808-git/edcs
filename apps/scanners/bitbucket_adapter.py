@@ -10,6 +10,7 @@ severity <  fail_threshold                  -> warnings
 Each item keeps EDCS's `recommendation` text for the "suggest correction"
 step.
 """
+from __future__ import annotations
 import time
 from django.conf import settings as dj
 from .base import ScanResult, TransientScannerError

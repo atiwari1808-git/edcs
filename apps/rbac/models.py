@@ -10,6 +10,7 @@ Permission rows (see PERMISSION_CATALOGUE in permissions.py, applied by
 `seed_rbac`), and new roles are created entirely through the Role
 Management UI with no code change required.
 """
+from __future__ import annotations
 from django.conf import settings
 from django.db import models
 

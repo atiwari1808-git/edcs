@@ -5,6 +5,7 @@ DEFAULT ROLE (Developer out of the box; an admin can change it on the Users
 page). An account stays inactive until someone with the `users.create`
 permission activates it from the Users page.
 """
+from __future__ import annotations
 import re
 
 from django.contrib import messages

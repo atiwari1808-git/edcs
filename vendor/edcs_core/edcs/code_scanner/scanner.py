@@ -12,7 +12,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 from edcs.bitbucket_client.client import ClonedRepo
-from edcs.code_scanner import config_scanner, ip_scanner, secret_scanner
+from edcs.code_scanner import comments, config_scanner, ip_scanner, secret_scanner
 from edcs.config import Settings, get_settings
 from edcs.models import Finding, Severity
 from edcs.regex_engine.engine import RuleSet, load_rules
@@ -76,12 +76,20 @@ def scan_one_file(abspath: str, root: str, rules_file: str) -> list[Finding]:
     p, rootp = Path(abspath), Path(root)
     rel = str(p.relative_to(rootp))
     lines = _read_lines(p)
+    # Python `if __name__ == "__main__":` harness is a manual/demo dry-run
+    # block, not shipped config - exclude it (and everything below it) from
+    # IP/secret checks. Slicing keeps 1-based line numbers correct for the rest.
+    guard = None
+    if p.suffix.lower() == ".py":
+        guard = comments.main_guard_lineno(lines)
+        if guard is not None:
+            lines = lines[: guard - 1]
     findings = secret_scanner.scan_lines(rel, lines, rs)
     for lineno, line in enumerate(lines, start=1):
         findings.extend(ip_scanner.scan_line(rel, lineno, line))
     if p.suffix.lower() in CONFIG_EXTS:
         findings.extend(config_scanner.scan_config_file(p, rel, rs))
-    findings.extend(secret_scanner.detect_secrets_findings(rel, abspath, rs))
+    findings.extend(secret_scanner.detect_secrets_findings(rel, abspath, rs, guard))
     return secret_scanner.dedupe(findings)
 
 

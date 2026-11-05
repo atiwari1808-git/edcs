@@ -1,7 +1,11 @@
+from __future__ import annotations
 import json
 import re
 from datetime import datetime, date
-from zoneinfo import ZoneInfo
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required

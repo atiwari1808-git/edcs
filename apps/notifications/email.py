@@ -9,6 +9,7 @@ attributes and fully inline styles so they render correctly in the classic
 Outlook (Word) engine as well as Outlook-on-the-web / mobile clients. Do NOT
 switch back to <div>+CSS-background layouts — the Word engine drops them.
 """
+from __future__ import annotations
 import re
 from html import escape
 

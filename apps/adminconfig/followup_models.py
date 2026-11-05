@@ -11,6 +11,7 @@ Design (confirmed with product owner):
     e.g. 15) shared across every tool.
 Both day-offsets are counted from the day AFTER the handover date has passed.
 """
+from __future__ import annotations
 from django.db import models
 
 

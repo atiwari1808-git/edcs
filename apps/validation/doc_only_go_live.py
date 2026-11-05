@@ -1,3 +1,4 @@
+from __future__ import annotations
 # New minimal view for doc-only go-live (example)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required

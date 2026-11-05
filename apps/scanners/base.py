@@ -1,6 +1,7 @@
 """Stable adapter interface between EDCS-Gate and the existing scanners.
 Your real ERIDOC / Bitbucket scanners plug in behind ScanResult so their
 internal changes (e.g. d2rest response-shape updates) never leak upward."""
+from __future__ import annotations
 from dataclasses import dataclass, field
 
 

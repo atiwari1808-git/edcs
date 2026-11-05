@@ -1,6 +1,7 @@
 """Run lifecycle.
 The scanner set is ALWAYS resolved server-side from
 ToolConfig — the client cannot choose which scanners execute."""
+from __future__ import annotations
 import re
 from celery import chord
 from apps.adminconfig.models import ToolConfig, AutomationType, JiraType

@@ -5,6 +5,7 @@ from __future__ import annotations
 import ipaddress
 import re
 
+from edcs.code_scanner.comments import is_comment_line
 from edcs.models import Finding, Severity
 from edcs.utils.masking import mask_line
 
@@ -36,6 +37,8 @@ def classify(ip) -> tuple[Severity, str]:
 
 def scan_line(relpath: str, lineno: int, line: str) -> list[Finding]:
     findings: list[Finding] = []
+    if is_comment_line(line):
+        return findings  # IPs in commented-out code are not live config
     versionish = bool(VERSIONISH.search(line))
     seen: set[str] = set()
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from edcs.document_scanner.mandatory import Checklist
 
 
-@dataclass(slots=True)
+@dataclass()
 class DocState:
     key: str
     weight: int
@@ -23,7 +23,7 @@ class DocState:
     protected: bool = False
 
 
-@dataclass(slots=True)
+@dataclass()
 class ScoreResult:
     score: int
     caps_applied: list[str] = field(default_factory=list)

@@ -39,3 +39,21 @@ def test_ipv6_compressed():
 def test_ipv6_loopback():
     f = scan_line("a.py", 1, "ping ::1")
     assert _sev(f, "IPV6")
+
+
+def test_commented_hash_ip_not_flagged():
+    assert scan_line("a.py", 1, "# HOST = 8.8.8.8") == []
+
+
+def test_commented_slash_ip_not_flagged():
+    assert scan_line("a.js", 1, "// const ip = '10.0.0.5'") == []
+
+
+def test_commented_sql_dash_ip_not_flagged():
+    assert scan_line("a.sql", 1, "-- server 203.0.113.9") == []
+
+
+def test_inline_comment_ip_still_flagged():
+    # code precedes the comment -> real config, must still be detected
+    f = scan_line("a.py", 1, "HOST = '8.8.8.8'  # google dns")
+    assert Severity.HIGH in _sev(f, "IPV4")

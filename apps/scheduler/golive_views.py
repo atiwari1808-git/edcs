@@ -4,6 +4,7 @@
 Wired via one path in apps/scheduler/urls.py. Marking a handover GO-live stops
 all further GO-live reminders and escalations for that meeting.
 """
+from __future__ import annotations
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone

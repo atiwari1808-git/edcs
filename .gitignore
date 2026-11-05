@@ -51,3 +51,6 @@ db.sqlite3.bak-*
 
 # --- Backups we make during migrations ---
 *.bak
+edcs_code_update_20261104_181701.tar.gz
+*backup_20261022_115730
+edcs_python38_migrate.sh*
